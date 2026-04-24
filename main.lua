@@ -4,14 +4,19 @@
 	Licensed under MIT. You should not have received a copy of the MIT license with this program because just google for it, cmon.
 ]]
 
+gametitle = "I Want to Worm the Hole"
+gameidentity = "iw2wth"
+onlineMappacksEnabled = false
+mappackServerBaseUrl = nil
+
 function love.load()
-	love.filesystem.setIdentity("mari0")
+	love.filesystem.setIdentity(gameidentity)
 	if not love.filesystem.getSaveDirectory():match("LOVE") then
-		love.filesystem.setIdentity("LOVE/mari0")
+		love.filesystem.setIdentity("LOVE/" .. gameidentity)
 	end
 
 	marioversion = 1006
-	versionstring = "version 1.6"
+	versionstring = "prototype 0.1"
 	shaderlist = love.filesystem.getDirectoryItems( "shaders/" )
 	dlclist = {"dlc_a_portal_tribute", "dlc_acid_trip", "dlc_escape_the_lab", "dlc_scienceandstuff", "dlc_smb2J", "dlc_the_untitled_game"}
 
@@ -40,7 +45,7 @@ function love.load()
 	width = 25
 	fullscreen = false
 	changescale(scale, fullscreen)
-	love.window.setTitle( "Mari0" )
+	love.window.setTitle(gametitle)
 
 	--version check
 	local loveversion = string.format("%02d.%02d.%02d", love._version_major, love._version_minor, love._version_revision)
@@ -167,7 +172,7 @@ function love.load()
 	http.TIMEOUT = 1
 
 	updatenotification = false
-	if getupdate() then
+	if onlineMappacksEnabled and getupdate() then
 		updatenotification = true
 	end
 	http.TIMEOUT = 4
@@ -1594,9 +1599,9 @@ function openSaveFolder(subfolder) --By Slime
 	if os.getenv("WINDIR") then -- lolwindows
 		--cmdstr = "Explorer /root,%s"
 		if path:match("LOVE") then --hardcoded to fix ISO characters in usernames and made sure release mode doesn't mess anything up -saso
-			cmdstr = "Explorer %%appdata%%\\LOVE\\mari0"
+			cmdstr = "Explorer %%appdata%%\\LOVE\\" .. gameidentity
 		else
-			cmdstr = "Explorer %%appdata%%\\mari0"
+			cmdstr = "Explorer %%appdata%%\\" .. gameidentity
 		end
 		path = path:gsub("/", "\\")
 		successval = 1
@@ -1613,7 +1618,11 @@ function openSaveFolder(subfolder) --By Slime
 end
 
 function getupdate()
-	local onlinedata, code = http.request("http://server.stabyourself.net/mari0/?mode=mappacks")
+	if not onlineMappacksEnabled or not mappackServerBaseUrl then
+		return false
+	end
+
+	local onlinedata, code = http.request(mappackServerBaseUrl .. "/?mode=mappacks")
 
 	if code ~= 200 then
 		return false

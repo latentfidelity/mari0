@@ -1,6 +1,6 @@
 function love.conf(t)
-	t.author = "Maurice"
-	t.identity = "mari0"
+	t.author = "IW2WTH Team"
+	t.identity = "iw2wth"
 	t.console = false
 	--t.screen = false
 	t.modules.physics = false

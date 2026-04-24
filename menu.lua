@@ -275,7 +275,7 @@ function menu_draw()
 
 		if updatenotification then
 			love.graphics.setColor(1, 0, 0)
-			properprint("version outdated!|go to stabyourself.net|to download latest", 220*scale, 90*scale)
+			properprint("prototype build|needs an update", 220*scale, 90*scale)
 			love.graphics.setColor(1, 1, 1, 1)
 		end
 
@@ -486,10 +486,10 @@ function menu_draw()
 				love.graphics.setColor(0, 0, 0, 0.8)
 				love.graphics.rectangle("fill", 241*scale, 16*scale, 150*scale, 200*scale)
 				love.graphics.setColor(1, 1, 1)
-				properprint("wanna contribute?|make a mappack and|send an email to|mappack at|stabyourself.net!||include your map-|pack! you can find|it in your appdata|love/mari0 dir.", 244*scale, 19*scale)
+				properprint("online mappacks|are disabled for|this prototype.||local mappacks|still work from|the mappack|folder.", 244*scale, 19*scale)
 				if outdated then
 					love.graphics.setColor(1, 0, 0)
-					properprint("version outdated!|you have an old|version of mari0!|mappacks could not|be downloaded.|go to|stabyourself.net|to download latest", 244*scale, 130*scale)
+					properprint("online mappacks|need an iw2wth|server config.", 244*scale, 130*scale)
 					love.graphics.setColor(1, 1, 1)
 				elseif downloaderror then
 					love.graphics.setColor(1, 0, 0)
@@ -1417,7 +1417,11 @@ end
 
 function downloadmappacks()
 	downloaderror = false
-	local onlinedata, code = http.request("http://server.stabyourself.net/mari0/index2.php?mode=mappacks")
+	if not onlineMappacksEnabled or not mappackServerBaseUrl then
+		return false
+	end
+
+	local onlinedata, code = http.request(mappackServerBaseUrl .. "/index2.php?mode=mappacks")
 
 	if code ~= 200 then
 		downloaderror = true
@@ -1473,7 +1477,7 @@ function downloadmappacks()
 			end
 
 			love.filesystem.createDirectory("mappacks/" .. maplist[i])
-			local onlinedata, code = http.request("http://server.stabyourself.net/mari0/index2.php?mode=getmap&get=" .. maplist[i])
+			local onlinedata, code = http.request(mappackServerBaseUrl .. "/index2.php?mode=getmap&get=" .. maplist[i])
 
 			if code == 200 then
 				filecount = 0
@@ -1690,8 +1694,10 @@ function menu_keypressed(key, unicode)
 				createmappack()
 			end
 		elseif (key == "right" or key == "d") then
-			loadonlinemappacks()
-			mappackhorscroll = 1
+			if onlineMappacksEnabled then
+				loadonlinemappacks()
+				mappackhorscroll = 1
+			end
 		elseif (key == "left" or key == "a") then
 			loadmappacks()
 			mappackhorscroll = 0

@@ -1,0 +1,6 @@
+# Generated from mario.lua on-vine movement by tools/generate_player_frame_step_fixtures.lua.
+# case y height move_timer direction block_y block_height dt expected_y expected_move_timer expected_climb_frame expected_trigger_animation expected_portal_probe_y expected_blocked_by_solid
+vine_up_animation_threshold 3.1 0.75 0.10 up none none 0.05 2.9395 0.15 1 true none false
+vine_down_open_probe 5.0 0.75 0.04 down none none 0.04 5.2568 0.08 2 false 5.2568 false
+vine_idle_resets_timer 6.0 0.75 1.2 idle none none 0.2 6.0 0.0 2 false none false
+vine_down_blocked_after_probe 5.0 0.75 0.02 down 5.5 1.0 0.04 4.75 0.06 2 false 5.2568 true

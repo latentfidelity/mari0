@@ -1,0 +1,9 @@
+# Generated from physics.lua fireball/enemy overlap ordering and fireball.lua hitstuff by tools/generate_fireball_enemy_overlap_fixtures.lua.
+# case projectile_x projectile_y projectile_width projectile_height projectile_speed_x projectile_speed_y projectile_active dt enemy_order enemy_target enemy_index enemy_x enemy_y enemy_width enemy_height enemy_has_shotted_handler expected_probe_count expected_enemy_index expected_axis expected_target expected_shoot_target expected_points expected_released_thrower expected_after_active expected_after_destroy_soon expected_after_speed_x expected_after_speed_y
+passive_goomba_before_later_nonoverlap 3.375 4.25 0.5 0.5 15 0 true 0.2 1 goomba 7 3.5 4 1 1 true 1 7 passive goomba right 100 true false true 15 0
+passive_goomba_before_later_nonoverlap 3.375 4.25 0.5 0.5 15 0 true 0.2 2 koopa 8 6 4 1 1 true 1 7 passive goomba right 100 true false true 15 0
+skip_missing_handler_then_hit_plant 3.375 4.25 0.5 0.5 15 0 true 0.2 1 goomba 3 3.5 4 1 1 false 1 4 passive plant right 200 true false true 15 0
+skip_missing_handler_then_hit_plant 3.375 4.25 0.5 0.5 15 0 true 0.2 2 plant 4 3.5 4 1 1 true 1 4 passive plant right 200 true false true 15 0
+horizontal_sweep_hits_koopa 3 4.25 0.5 0.5 8 0 true 0.1 1 koopa 5 3.75 4 1 1 true 1 5 right koopa right 200 true false true -15 0
+vertical_sweep_hits_bowser_without_points 3 3 0.5 0.5 0 8 true 0.1 1 bowser 1 3 3.75 1 1 true 1 1 floor bowser right none true false true 0 -10
+passive_beetle_explodes_without_shot 3.375 4.25 0.5 0.5 15 0 true 0.2 1 koopa_beetle 6 3.5 4 1 1 true 1 6 passive koopa_beetle none none true false true 15 0

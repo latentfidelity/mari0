@@ -1,0 +1,12 @@
+# Generated from physics.lua horcollision/vercollision by tools/generate_collision_response_fixtures.lua.
+# case moving_x moving_y moving_width moving_height moving_speed_x moving_speed_y target_x target_y target_width target_height target_speed_x target_speed_y moving_handler target_handler expected_moving_x expected_moving_y expected_moving_speed_x expected_moving_speed_y expected_target_speed_x expected_target_speed_y expected_resolved
+horizontal_left_default 4.0 2.0 1.0 1.5 -6.0 3.0 2.0 2.0 1.25 2.0 4.0 9.0 apply apply 3.25 2.0 0.0 3.0 0.0 9.0 true
+horizontal_right_default 2.0 2.0 1.0 1.5 6.0 3.0 4.0 2.0 1.25 2.0 -4.0 9.0 apply apply 3.0 2.0 0.0 3.0 0.0 9.0 true
+horizontal_moving_handler_false 2.0 2.0 1.0 1.5 6.0 3.0 4.0 2.0 1.25 2.0 -4.0 9.0 suppress apply 2.0 2.0 6.0 3.0 0.0 9.0 false
+horizontal_target_handler_false 2.0 2.0 1.0 1.5 6.0 3.0 4.0 2.0 1.25 2.0 -4.0 9.0 apply suppress 3.0 2.0 0.0 3.0 -4.0 9.0 true
+horizontal_static_target 2.0 2.0 1.0 1.5 0.0 3.0 4.0 2.0 1.25 2.0 none none apply apply 3.0 2.0 0.0 3.0 none none true
+vertical_up_default 2.0 4.0 1.0 1.5 6.0 -3.0 2.0 2.0 1.25 2.0 4.0 9.0 apply apply 2.0 4.0 6.0 0.0 4.0 0.0 true
+vertical_down_default 2.0 1.0 1.0 1.5 6.0 3.0 2.0 4.0 1.25 2.0 4.0 -9.0 apply apply 2.0 2.5 6.0 0.0 4.0 0.0 true
+vertical_moving_handler_false 2.0 1.0 1.0 1.5 6.0 3.0 2.0 4.0 1.25 2.0 4.0 -9.0 suppress apply 2.0 1.0 6.0 3.0 4.0 0.0 false
+vertical_target_handler_false 2.0 1.0 1.0 1.5 6.0 3.0 2.0 4.0 1.25 2.0 4.0 -9.0 apply suppress 2.0 2.5 6.0 0.0 4.0 -9.0 true
+vertical_static_target 2.0 1.0 1.0 1.5 6.0 0.0 2.0 4.0 1.25 2.0 none none apply apply 2.0 2.5 6.0 0.0 none none true

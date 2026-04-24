@@ -1,0 +1,7 @@
+# Generated from physics.lua passivecollision by tools/generate_passive_collision_response_fixtures.lua.
+# case moving_x moving_y moving_width moving_height moving_speed_x moving_speed_y target_x target_y target_width target_height target_speed_x target_speed_y moving_passive_handler target_passive_handler floor_handler expected_moving_x expected_moving_y expected_moving_speed_x expected_moving_speed_y expected_target_speed_x expected_target_speed_y expected_resolved expected_moving_passive_called expected_target_passive_called
+passive_moving_handler_calls_target_handler 2.0 4.0 1.0 1.5 6.0 3.0 2.0 4.5 1.25 2.0 4.0 9.0 true true none 2.0 4.0 6.0 3.0 4.0 9.0 false true true
+passive_moving_handler_without_target_handler 2.0 4.0 1.0 1.5 6.0 3.0 2.0 4.5 1.25 2.0 4.0 9.0 true false none 2.0 4.0 6.0 3.0 4.0 9.0 false true false
+passive_default_floor_snap_downward 2.0 4.0 1.0 1.5 6.0 3.0 2.0 4.5 1.25 2.0 4.0 9.0 false true none 2.0 3.0 6.0 0.0 4.0 9.0 true false false
+passive_floor_handler_apply_upward_preserves_speed 2.0 4.0 1.0 1.5 6.0 -3.0 2.0 4.5 1.25 2.0 none none false false apply 2.0 3.0 6.0 -3.0 none none true false false
+passive_floor_handler_false_suppresses_default 2.0 4.0 1.0 1.5 6.0 3.0 2.0 4.5 1.25 2.0 4.0 9.0 false true suppress 2.0 4.0 6.0 3.0 4.0 9.0 false false false

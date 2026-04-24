@@ -1,0 +1,18 @@
+# Generated from physics.lua portalcoords by tools/generate_portalcoords_fixtures.lua.
+# case entry exit x y speed_x speed_y width height rotation animation entry_x entry_y exit_x exit_y live gravity frame_dt expected_x expected_y expected_speed_x expected_speed_y expected_rotation expected_animation
+up_to_up up up 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 19.25 9.5 3.0 4.0 -2.891592654 left
+up_to_right up right 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 20.5 11.75 -4.0 -3.0 -1.320796327 left
+up_to_down up down 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 18.25 12.5 3.0 -4.0 0.25 left
+up_to_left up left 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 17.5 10.25 4.0 3.0 1.820796327 left
+right_to_up right up 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 19.5 10.25 4.0 3.0 1.820796327 left
+right_to_right right right 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 19.75 11.5 -3.0 -4.0 0.25 right
+right_to_down right down 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 18.5 11.75 -4.0 -3.0 -1.320796327 left
+right_to_left right left 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 18.25 10.5 3.0 -4.0 0.25 left
+down_to_up down up 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 20.25 10.5 3.0 -4.0 0.25 left
+down_to_right down right 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 19.5 12.25 4.0 3.0 1.820796327 left
+down_to_down down down 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 19.25 11.5 3.0 4.0 -2.891592654 left
+down_to_left down left 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 18.5 9.75 -4.0 -3.0 -1.320796327 left
+left_to_up left up 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 20.5 9.75 -4.0 -3.0 -1.320796327 left
+left_to_right left right 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 20.25 12.5 3.0 -4.0 0.25 left
+left_to_down left down 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 17.5 12.25 4.0 3.0 1.820796327 left
+left_to_left left left 9.25 7.5 3.0 -4.0 1.0 1.0 0.25 left 10.0 8.0 20.0 12.0 false 80.0 0.0166666667 17.75 11.5 -3.0 -4.0 0.25 right

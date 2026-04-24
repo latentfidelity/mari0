@@ -1,4 +1,4 @@
-name = "mari0"
+name = "iw2wth"
 default_targets = ["win32", "win64", "appimage", "macos"]
 build_directory = "makelove-build"
 icon_file = "_DO_NOT_INCLUDE/icon.png"
@@ -7,17 +7,19 @@ love_files = [
     "::git-ls-tree::",
     "-*/.*",
     "-./_DO_NOT_INCLUDE/*",
+    "-./docs/*",
+    "-./rust/*",
 ]
 
 [windows.exe_metadata]
-ProductName = "Mari0"
-CompanyName = "Stabyourself.net"
-LegalCopyright = "Copyright © 2006-2023 Maurice Guégan"
+ProductName = "I Want to Worm the Hole"
+CompanyName = "IW2WTH Team"
+LegalCopyright = "Copyright © 2026 IW2WTH Team. Mari0 engine portions © 2006-2023 Maurice Guégan"
 
 [linux.desktop_file_metadata]
-Name = "Mari0"
+Name = "I Want to Worm the Hole"
 
 [macos.app_metadata]
-CFBundleName = "Mari0"
-CFBundleIdentifier = "net.stabyourself"
-NSHumanReadableCopyright = "Copyright © 2006-2023 Maurice Guégan"
+CFBundleName = "I Want to Worm the Hole"
+CFBundleIdentifier = "com.latentfidelity.iw2wth"
+NSHumanReadableCopyright = "Copyright © 2026 IW2WTH Team. Mari0 engine portions © 2006-2023 Maurice Guégan"
