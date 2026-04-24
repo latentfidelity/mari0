@@ -26,6 +26,8 @@ use crate::{
         LegacyRuntimeBlockTopCoinCollectionIntent, LegacyRuntimeBlockTopEnemySnapshot,
         LegacyRuntimeBreakableBlockCleanupProjection, LegacyRuntimeCoinBlockAnimationUpdateReport,
         LegacyRuntimeCoinBlockRewardIntent, LegacyRuntimeCoinCounterIntent,
+        LegacyRuntimeDoorRenderIntentPreview, LegacyRuntimeDoorSnapshot,
+        LegacyRuntimeEmancipationGrillRenderIntentPreview, LegacyRuntimeEmancipationGrillSnapshot,
         LegacyRuntimeEmptyBreakableBlockDestroyIntent, LegacyRuntimeFireballCollisionProbe,
         LegacyRuntimeFireballCollisionProbeRequest, LegacyRuntimeFireballCollisionProbeSource,
         LegacyRuntimeFireballEnemyHitIntent, LegacyRuntimeFireballEnemySnapshot,
@@ -37,24 +39,27 @@ use crate::{
         LegacyRuntimePlayer, LegacyRuntimePlayerBlockBounceSchedule,
         LegacyRuntimePlayerCeilingBlockHit, LegacyRuntimePlayerCoinPickup,
         LegacyRuntimePlayerCollisionReport, LegacyRuntimePlayerRenderIntentPreview,
-        LegacyRuntimePlayerTileCollision, LegacyRuntimePortalAimSnapshot,
-        LegacyRuntimePortalBlockGuard, LegacyRuntimePortalBlockGuardSource,
-        LegacyRuntimePortalCoordsPreviewReport, LegacyRuntimePortalOutcomeIntent,
-        LegacyRuntimePortalOutcomeKind, LegacyRuntimePortalPairReadinessSummary,
-        LegacyRuntimePortalPlacement, LegacyRuntimePortalReplacementSummary,
-        LegacyRuntimePortalReservationProjection, LegacyRuntimePortalSlot,
-        LegacyRuntimePortalTargetPlayerSource, LegacyRuntimePortalTargetProbe,
-        LegacyRuntimePortalTraceHit, LegacyRuntimePortalTransitAudioIntent,
-        LegacyRuntimePortalTransitCandidateProbe, LegacyRuntimePortalTransitOutcomeKind,
-        LegacyRuntimePortalTransitOutcomeSummary, LegacyRuntimeProjectedFireballCountSnapshot,
-        LegacyRuntimeProjectedFireballCountState, LegacyRuntimeProjectedFireballEnemyHitSnapshot,
+        LegacyRuntimePlayerTileCollision, LegacyRuntimePortalAimRenderIntentPreview,
+        LegacyRuntimePortalAimSnapshot, LegacyRuntimePortalBlockGuard,
+        LegacyRuntimePortalBlockGuardSource, LegacyRuntimePortalCoordsPreviewReport,
+        LegacyRuntimePortalOutcomeIntent, LegacyRuntimePortalOutcomeKind,
+        LegacyRuntimePortalPairReadinessSummary, LegacyRuntimePortalPlacement,
+        LegacyRuntimePortalProjectileRenderIntentPreview, LegacyRuntimePortalProjectileSnapshot,
+        LegacyRuntimePortalReplacementSummary, LegacyRuntimePortalReservationProjection,
+        LegacyRuntimePortalSlot, LegacyRuntimePortalTargetPlayerSource,
+        LegacyRuntimePortalTargetProbe, LegacyRuntimePortalTraceHit,
+        LegacyRuntimePortalTransitAudioIntent, LegacyRuntimePortalTransitCandidateProbe,
+        LegacyRuntimePortalTransitOutcomeKind, LegacyRuntimePortalTransitOutcomeSummary,
+        LegacyRuntimeProjectedFireballCountSnapshot, LegacyRuntimeProjectedFireballCountState,
+        LegacyRuntimeProjectedFireballEnemyHitSnapshot,
         LegacyRuntimeProjectedFireballEnemyHitState,
         LegacyRuntimeProjectedFireballProjectileCollisionSnapshot,
         LegacyRuntimeProjectedFireballProjectileCollisionState, LegacyRuntimeProjectedPlayerState,
         LegacyRuntimeProjectedPlayerStateSnapshot, LegacyRuntimeProjectedPortalState,
         LegacyRuntimeRenderContext, LegacyRuntimeScoreCounterIntent, LegacyRuntimeScoreSource,
         LegacyRuntimeScrollingScoreAnimationUpdateReport, LegacyRuntimeShell,
-        LegacyRuntimeTileChangeProjection,
+        LegacyRuntimeTileChangeProjection, LegacyRuntimeWallIndicatorRenderIntentPreview,
+        LegacyRuntimeWallIndicatorSnapshot,
     },
     tiles::{LegacyTileMetadataLoadError, LegacyTileMetadataTable},
     time::LEGACY_MAX_UPDATE_DT,
@@ -77,6 +82,10 @@ pub struct LegacyRuntimeHarnessConfig {
     pub input: LegacyRuntimeHarnessInput,
     pub initial_player: LegacyRuntimePlayer,
     pub initial_fireball_projectiles: Vec<LegacyFireballState>,
+    pub initial_portal_projectiles: Vec<LegacyRuntimePortalProjectileSnapshot>,
+    pub initial_emancipation_grills: Vec<LegacyRuntimeEmancipationGrillSnapshot>,
+    pub initial_doors: Vec<LegacyRuntimeDoorSnapshot>,
+    pub initial_wall_indicators: Vec<LegacyRuntimeWallIndicatorSnapshot>,
     pub fireball_collision_probe: Option<LegacyRuntimeFireballCollisionProbeRequest>,
     pub fireball_enemies: Vec<LegacyRuntimeFireballEnemySnapshot>,
     pub jump_items: Vec<LegacyRuntimeBlockJumpItemSnapshot>,
@@ -105,6 +114,10 @@ impl Default for LegacyRuntimeHarnessConfig {
                 PlayerMovementState::default(),
             ),
             initial_fireball_projectiles: Vec::new(),
+            initial_portal_projectiles: Vec::new(),
+            initial_emancipation_grills: Vec::new(),
+            initial_doors: Vec::new(),
+            initial_wall_indicators: Vec::new(),
             fireball_collision_probe: None,
             fireball_enemies: Vec::new(),
             jump_items: Vec::new(),
@@ -133,6 +146,7 @@ pub struct LegacyRuntimeHarnessInput {
     pub portal_1: bool,
     pub portal_2: bool,
     pub pointing_angle: f32,
+    pub portal_dots_timer: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -159,6 +173,17 @@ pub struct LegacyRuntimeHarnessReport {
     pub fireball_render_preview_count: usize,
     pub fireball_render_preview_suppressed_count: usize,
     pub fireball_render_preview_detail_summary: LegacyRuntimeFireballRenderPreviewDetailSummary,
+    pub portal_projectile_render_preview_count: usize,
+    pub portal_projectile_render_preview_detail_summary:
+        LegacyRuntimePortalProjectileRenderPreviewDetailSummary,
+    pub emancipation_grill_render_preview_count: usize,
+    pub emancipation_grill_render_preview_detail_summary:
+        LegacyRuntimeEmancipationGrillRenderPreviewDetailSummary,
+    pub door_render_preview_count: usize,
+    pub door_render_preview_detail_summary: LegacyRuntimeDoorRenderPreviewDetailSummary,
+    pub wall_indicator_render_preview_count: usize,
+    pub wall_indicator_render_preview_detail_summary:
+        LegacyRuntimeWallIndicatorRenderPreviewDetailSummary,
     pub fireball_map_target_probe_count: usize,
     pub fireball_map_target_detail_summary: LegacyRuntimeFireballMapTargetDetailSummary,
     pub fireball_collision_probe_count: usize,
@@ -222,6 +247,8 @@ pub struct LegacyRuntimeHarnessReport {
     pub many_coins_timer_detail_summary: LegacyRuntimeManyCoinsTimerDetailSummary,
     pub contained_reward_reveal_intent_count: usize,
     pub contained_reward_reveal_detail_summary: LegacyRuntimeContainedRewardRevealDetailSummary,
+    pub portal_aim_render_preview_count: usize,
+    pub portal_aim_render_preview_detail_summary: LegacyRuntimePortalAimRenderPreviewDetailSummary,
     pub portal_target_source_selection: LegacyRuntimePortalTargetSourceSelectionSummary,
     pub portal_target_placement_summary: LegacyRuntimePortalTargetPlacementSummary,
     pub portal_open_outcome_summary: LegacyRuntimePortalOpenOutcomeSummary,
@@ -285,6 +312,17 @@ pub struct LegacyRuntimePortalTargetPlacementDetail {
     pub requested_slot: Option<LegacyRuntimePortalSlot>,
     pub trace_hit: Option<LegacyRuntimePortalTraceHit>,
     pub placement: Option<LegacyRuntimePortalPlacement>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimePortalAimRenderPreviewDetailSummary {
+    pub last_preview: Option<LegacyRuntimePortalAimRenderPreviewDetail>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimePortalAimRenderPreviewDetail {
+    pub frame_index: usize,
+    pub preview: LegacyRuntimePortalAimRenderIntentPreview,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -455,6 +493,50 @@ pub struct LegacyRuntimeFireballRenderPreviewDetailSummary {
 pub struct LegacyRuntimeFireballRenderPreviewDetail {
     pub frame_index: usize,
     pub preview: LegacyRuntimeFireballRenderIntentPreview,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimePortalProjectileRenderPreviewDetailSummary {
+    pub last_preview: Option<LegacyRuntimePortalProjectileRenderPreviewDetail>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimePortalProjectileRenderPreviewDetail {
+    pub frame_index: usize,
+    pub preview: LegacyRuntimePortalProjectileRenderIntentPreview,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillRenderPreviewDetailSummary {
+    pub last_preview: Option<LegacyRuntimeEmancipationGrillRenderPreviewDetail>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillRenderPreviewDetail {
+    pub frame_index: usize,
+    pub preview: LegacyRuntimeEmancipationGrillRenderIntentPreview,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimeDoorRenderPreviewDetailSummary {
+    pub last_preview: Option<LegacyRuntimeDoorRenderPreviewDetail>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimeDoorRenderPreviewDetail {
+    pub frame_index: usize,
+    pub preview: LegacyRuntimeDoorRenderIntentPreview,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimeWallIndicatorRenderPreviewDetailSummary {
+    pub last_preview: Option<LegacyRuntimeWallIndicatorRenderPreviewDetail>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeWallIndicatorRenderPreviewDetail {
+    pub frame_index: usize,
+    pub preview: LegacyRuntimeWallIndicatorRenderIntentPreview,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -886,6 +968,10 @@ pub struct LegacyRuntimeHarnessFrame {
     pub fireball_projectile_prune_count: usize,
     pub fireball_render_preview_count: usize,
     pub fireball_render_preview_suppressed_count: usize,
+    pub portal_projectile_render_preview_count: usize,
+    pub emancipation_grill_render_preview_count: usize,
+    pub door_render_preview_count: usize,
+    pub wall_indicator_render_preview_count: usize,
     pub fireball_map_target_probe_count: usize,
     pub fireball_collision_probe_count: usize,
     pub fireball_collision_release_summary_count: usize,
@@ -922,6 +1008,7 @@ pub struct LegacyRuntimeHarnessFrame {
     pub tile_change_projections: Vec<LegacyRuntimeTileChangeProjection>,
     pub projected_tile_change_snapshot: Vec<LegacyRuntimeTileChangeProjection>,
     pub portal_target_probe: Option<LegacyRuntimePortalTargetProbe>,
+    pub portal_aim_render_preview: Option<LegacyRuntimePortalAimRenderIntentPreview>,
     pub portal_outcome_intent: Option<LegacyRuntimePortalOutcomeIntent>,
     pub portal_reservation_projections: Vec<LegacyRuntimePortalReservationProjection>,
     pub portal_replacement_summaries: Vec<LegacyRuntimePortalReplacementSummary>,
@@ -966,6 +1053,10 @@ pub fn run_legacy_runtime_harness(
     shell.top_enemies = config.top_enemies.clone();
     shell.many_coins_timers = config.many_coins_timers.clone();
     shell.fireball_projectiles = config.initial_fireball_projectiles.clone();
+    shell.portal_projectiles = config.initial_portal_projectiles.clone();
+    shell.emancipation_grills = config.initial_emancipation_grills.clone();
+    shell.doors = config.initial_doors.clone();
+    shell.wall_indicators = config.initial_wall_indicators.clone();
     shell.fireball_enemies = config.fireball_enemies.clone();
     shell.coin_count = config.coin_count;
     shell.score_count = config.score_count;
@@ -1011,6 +1102,18 @@ pub fn run_legacy_runtime_harness(
     let mut fireball_render_preview_suppressed_count = 0;
     let mut fireball_render_preview_detail_summary =
         LegacyRuntimeFireballRenderPreviewDetailSummary::default();
+    let mut portal_projectile_render_preview_count = 0;
+    let mut portal_projectile_render_preview_detail_summary =
+        LegacyRuntimePortalProjectileRenderPreviewDetailSummary::default();
+    let mut emancipation_grill_render_preview_count = 0;
+    let mut emancipation_grill_render_preview_detail_summary =
+        LegacyRuntimeEmancipationGrillRenderPreviewDetailSummary::default();
+    let mut door_render_preview_count = 0;
+    let mut door_render_preview_detail_summary =
+        LegacyRuntimeDoorRenderPreviewDetailSummary::default();
+    let mut wall_indicator_render_preview_count = 0;
+    let mut wall_indicator_render_preview_detail_summary =
+        LegacyRuntimeWallIndicatorRenderPreviewDetailSummary::default();
     let mut fireball_map_target_probe_count = 0;
     let mut fireball_map_target_detail_summary =
         LegacyRuntimeFireballMapTargetDetailSummary::default();
@@ -1084,6 +1187,9 @@ pub fn run_legacy_runtime_harness(
     let mut contained_reward_reveal_intent_count = 0;
     let mut contained_reward_reveal_detail_summary =
         LegacyRuntimeContainedRewardRevealDetailSummary::default();
+    let mut portal_aim_render_preview_count = 0;
+    let mut portal_aim_render_preview_detail_summary =
+        LegacyRuntimePortalAimRenderPreviewDetailSummary::default();
     let mut portal_target_source_selection =
         LegacyRuntimePortalTargetSourceSelectionSummary::default();
     let mut portal_target_placement_summary = LegacyRuntimePortalTargetPlacementSummary::default();
@@ -1130,12 +1236,14 @@ pub fn run_legacy_runtime_harness(
             config.joystick_deadzone,
             config.render,
             None,
-        );
+        )
+        .with_player_pointing_angle(config.input.pointing_angle);
         if config.input.portal_1 || config.input.portal_2 {
             request = request.with_portal_aim(
                 LegacyRuntimePortalAimSnapshot::new(config.input.pointing_angle)
                     .with_portal_1_down(config.input.portal_1)
-                    .with_portal_2_down(config.input.portal_2),
+                    .with_portal_2_down(config.input.portal_2)
+                    .with_portal_dots_timer(config.input.portal_dots_timer),
             );
         }
         if config.input.fire {
@@ -1215,6 +1323,55 @@ pub fn run_legacy_runtime_harness(
         {
             fireball_render_preview_detail_summary.last_suppressed_projected_removal_index =
                 Some(index);
+        }
+        portal_projectile_render_preview_count +=
+            frame.portal_projectile_render_previews.previews.len();
+        if let Some(preview) = frame
+            .portal_projectile_render_previews
+            .previews
+            .last()
+            .cloned()
+        {
+            portal_projectile_render_preview_detail_summary.last_preview =
+                Some(LegacyRuntimePortalProjectileRenderPreviewDetail {
+                    frame_index: index,
+                    preview,
+                });
+        }
+        emancipation_grill_render_preview_count +=
+            frame.emancipation_grill_render_previews.previews.len();
+        if let Some(preview) = frame
+            .emancipation_grill_render_previews
+            .previews
+            .last()
+            .cloned()
+        {
+            emancipation_grill_render_preview_detail_summary.last_preview =
+                Some(LegacyRuntimeEmancipationGrillRenderPreviewDetail {
+                    frame_index: index,
+                    preview,
+                });
+        }
+        door_render_preview_count += frame.door_render_previews.previews.len();
+        if let Some(preview) = frame.door_render_previews.previews.last().cloned() {
+            door_render_preview_detail_summary.last_preview =
+                Some(LegacyRuntimeDoorRenderPreviewDetail {
+                    frame_index: index,
+                    preview,
+                });
+        }
+        wall_indicator_render_preview_count += frame.wall_indicator_render_previews.previews.len();
+        if let Some(preview) = frame
+            .wall_indicator_render_previews
+            .previews
+            .last()
+            .copied()
+        {
+            wall_indicator_render_preview_detail_summary.last_preview =
+                Some(LegacyRuntimeWallIndicatorRenderPreviewDetail {
+                    frame_index: index,
+                    preview,
+                });
         }
         fireball_map_target_probe_count += frame.fireball_map_target_probes.reports.len();
         if let Some(probe) = frame.fireball_map_target_probes.reports.last().copied() {
@@ -1745,6 +1902,14 @@ pub fn run_legacy_runtime_harness(
                     placement: probe.placement,
                 });
         }
+        if let Some(preview) = &frame.portal_aim_render_preview {
+            portal_aim_render_preview_count += 1;
+            portal_aim_render_preview_detail_summary.last_preview =
+                Some(LegacyRuntimePortalAimRenderPreviewDetail {
+                    frame_index: index,
+                    preview: preview.clone(),
+                });
+        }
         if let Some(outcome) = frame.portal_outcome_intent {
             match outcome.kind {
                 LegacyRuntimePortalOutcomeKind::Open => {
@@ -1884,6 +2049,19 @@ pub fn run_legacy_runtime_harness(
                 .fireball_render_previews
                 .suppressed_projected_removal_indices
                 .len(),
+            portal_projectile_render_preview_count: frame
+                .portal_projectile_render_previews
+                .previews
+                .len(),
+            emancipation_grill_render_preview_count: frame
+                .emancipation_grill_render_previews
+                .previews
+                .len(),
+            door_render_preview_count: frame.door_render_previews.previews.len(),
+            wall_indicator_render_preview_count: frame
+                .wall_indicator_render_previews
+                .previews
+                .len(),
             fireball_map_target_probe_count: frame.fireball_map_target_probes.reports.len(),
             fireball_collision_probe_count: frame.fireball_collision_probes.reports.len(),
             fireball_collision_release_summary_count: frame
@@ -1982,6 +2160,7 @@ pub fn run_legacy_runtime_harness(
             tile_change_projections: frame.tile_change_projections,
             projected_tile_change_snapshot,
             portal_target_probe: frame.portal_target_probe,
+            portal_aim_render_preview: frame.portal_aim_render_preview,
             portal_outcome_intent: frame.portal_outcome_intent,
             portal_reservation_projections: frame.portal_reservation_projections,
             portal_replacement_summaries: frame.portal_replacement_summaries,
@@ -2023,6 +2202,14 @@ pub fn run_legacy_runtime_harness(
         fireball_render_preview_count,
         fireball_render_preview_suppressed_count,
         fireball_render_preview_detail_summary,
+        portal_projectile_render_preview_count,
+        portal_projectile_render_preview_detail_summary,
+        emancipation_grill_render_preview_count,
+        emancipation_grill_render_preview_detail_summary,
+        door_render_preview_count,
+        door_render_preview_detail_summary,
+        wall_indicator_render_preview_count,
+        wall_indicator_render_preview_detail_summary,
         fireball_map_target_probe_count,
         fireball_map_target_detail_summary,
         fireball_collision_probe_count,
@@ -2083,6 +2270,8 @@ pub fn run_legacy_runtime_harness(
         many_coins_timer_detail_summary,
         contained_reward_reveal_intent_count,
         contained_reward_reveal_detail_summary,
+        portal_aim_render_preview_count,
+        portal_aim_render_preview_detail_summary,
         portal_target_source_selection,
         portal_target_placement_summary,
         portal_open_outcome_summary,
@@ -2265,22 +2454,33 @@ mod tests {
     use image::{ImageBuffer, ImageFormat, Rgba, RgbaImage};
 
     use super::{
-        LegacyRuntimeHarnessConfig, LegacyRuntimeHarnessInput, LegacyRuntimePlayerSpawnSource,
-        LegacyRuntimePortalOpenOutcomeDetail, LegacyRuntimePortalOpenOutcomeSummary,
+        LegacyRuntimeDoorRenderPreviewDetail, LegacyRuntimeDoorRenderPreviewDetailSummary,
+        LegacyRuntimeEmancipationGrillRenderPreviewDetail,
+        LegacyRuntimeEmancipationGrillRenderPreviewDetailSummary, LegacyRuntimeHarnessConfig,
+        LegacyRuntimeHarnessInput, LegacyRuntimePlayerSpawnSource,
+        LegacyRuntimePortalAimRenderPreviewDetail,
+        LegacyRuntimePortalAimRenderPreviewDetailSummary, LegacyRuntimePortalOpenOutcomeDetail,
+        LegacyRuntimePortalOpenOutcomeSummary, LegacyRuntimePortalProjectileRenderPreviewDetail,
+        LegacyRuntimePortalProjectileRenderPreviewDetailSummary,
         LegacyRuntimePortalReplacementDetail, LegacyRuntimePortalReplacementDetailSummary,
         LegacyRuntimePortalReservationProjectionDetail,
         LegacyRuntimePortalReservationProjectionSummary, LegacyRuntimePortalTargetPlacementDetail,
         LegacyRuntimePortalTargetPlacementSummary, LegacyRuntimePortalTargetSourceSelection,
-        LegacyRuntimePortalTargetSourceSelectionSummary, legacy_runtime_player_spawn,
+        LegacyRuntimePortalTargetSourceSelectionSummary,
+        LegacyRuntimeWallIndicatorRenderPreviewDetail,
+        LegacyRuntimeWallIndicatorRenderPreviewDetailSummary, legacy_runtime_player_spawn,
         run_legacy_runtime_harness,
     };
     use crate::{
         assets::BufferedLegacyAssetSource,
         audio::{LegacyAudioCommand, LegacySoundEffect},
+        render::LegacyColor,
         shell::{
             LegacyRuntimeBlockJumpItemSnapshot, LegacyRuntimeBlockTopEnemySnapshot,
             LegacyRuntimeBreakableBlockCleanupAction, LegacyRuntimeBreakableBlockCleanupProjection,
             LegacyRuntimeBreakableBlockCleanupSource, LegacyRuntimeCoinCounterSource,
+            LegacyRuntimeDoorSnapshot, LegacyRuntimeEmancipationGrillParticleDirection,
+            LegacyRuntimeEmancipationGrillParticleSnapshot, LegacyRuntimeEmancipationGrillSnapshot,
             LegacyRuntimeFireballCallback, LegacyRuntimeFireballCollisionAxis,
             LegacyRuntimeFireballCollisionProbeRequest, LegacyRuntimeFireballCollisionProbeSource,
             LegacyRuntimeFireballEnemySnapshot, LegacyRuntimeFireballProjectileReleaseSource,
@@ -2290,6 +2490,7 @@ mod tests {
             LegacyRuntimePlayerRenderHatSize, LegacyRuntimePlayerRenderQuad,
             LegacyRuntimePlayerRenderTintSource, LegacyRuntimePortalBlockGuardSource,
             LegacyRuntimePortalOutcomeKind, LegacyRuntimePortalPlacement,
+            LegacyRuntimePortalProjectileParticleSnapshot, LegacyRuntimePortalProjectileSnapshot,
             LegacyRuntimePortalReservationProjection, LegacyRuntimePortalSlot,
             LegacyRuntimePortalTargetPlayerSource, LegacyRuntimePortalTransitOutcomeKind,
             LegacyRuntimePortalWallReservation, LegacyRuntimeProjectedFireballCountSource,
@@ -2297,6 +2498,7 @@ mod tests {
             LegacyRuntimeProjectedPlayerStateSource, LegacyRuntimeProjectedPortalState,
             LegacyRuntimeRenderContext, LegacyRuntimeScoreSource,
             LegacyRuntimeTileChangeProjection, LegacyRuntimeTileChangeSource,
+            LegacyRuntimeWallIndicatorSnapshot,
         },
         tiles::LegacyTileMetadata,
         time::LEGACY_MAX_UPDATE_DT,
@@ -2440,6 +2642,10 @@ mod tests {
             raw_dt: 0.0,
             force_initial_player_seed: true,
             initial_player,
+            input: LegacyRuntimeHarnessInput {
+                pointing_angle: 0.25,
+                ..LegacyRuntimeHarnessInput::default()
+            },
             render: LegacyRuntimeRenderContext::new(1.25, 2.0),
             ..LegacyRuntimeHarnessConfig::default()
         };
@@ -2516,6 +2722,22 @@ mod tests {
         assert_eq!(detail.preview.hat_draws[0].precedes_graphic_layer_index, 0);
         assert_eq!(detail.preview.hat_draws[0].origin_x_px, 4);
         assert_eq!(detail.preview.hat_draws[0].origin_y_px, 16);
+        assert_eq!(
+            detail.preview.direction_scale.source,
+            crate::shell::LegacyRuntimePlayerRenderDirectionScaleSource::PlayerPointingAngle,
+        );
+        assert_eq!(
+            detail.preview.direction_scale.animation_facing,
+            HorizontalDirection::Left,
+        );
+        assert_eq!(detail.preview.direction_scale.pointing_angle, 0.25);
+        assert_eq!(detail.preview.direction_scale.direction_scale, -2.0);
+        assert_eq!(detail.preview.direction_scale.vertical_scale, 2.0);
+        assert_eq!(
+            detail.preview.hat_draws[0].direction_scale,
+            detail.preview.direction_scale,
+        );
+        assert_eq!(detail.preview.portal_clone, None);
         assert!(!detail.preview.hat_draws[0].live_rendering_executed);
         assert!(!detail.preview.live_rendering_executed);
         assert!(!detail.preview.live_player_mutated);
@@ -2526,6 +2748,89 @@ mod tests {
         assert_eq!(last_frame.player_render_preview_count, 1);
         assert_eq!(last_frame.player_render_preview, detail.preview);
         assert_eq!(report.final_player, detail.preview.player);
+    }
+
+    #[test]
+    fn harness_exposes_player_render_portal_clone_detail_without_live_rendering() {
+        let source = source_with_base_tile_atlases()
+            .with_file_contents("mappacks/smb/settings.txt", "name=Super Mario Bros.\n")
+            .with_file_contents("mappacks/smb/1-1.txt", level_source(10, "background=1"));
+        let mut projected_portals = LegacyRuntimeProjectedPortalState::default();
+        projected_portals.apply_projection(LegacyRuntimePortalReservationProjection {
+            requested_slot: LegacyRuntimePortalSlot::Portal1,
+            placement: LegacyRuntimePortalPlacement {
+                coord: LegacyMapTileCoord::new(5, 6),
+                side: Facing::Right,
+            },
+            tile_reservations: [LegacyMapTileCoord::new(5, 6), LegacyMapTileCoord::new(5, 7)],
+            wall_reservations: [
+                LegacyRuntimePortalWallReservation::new(4, 5, 0, 2),
+                LegacyRuntimePortalWallReservation::new(4, 5, 1, 0),
+                LegacyRuntimePortalWallReservation::new(4, 7, 1, 0),
+            ],
+        });
+        projected_portals.apply_projection(LegacyRuntimePortalReservationProjection {
+            requested_slot: LegacyRuntimePortalSlot::Portal2,
+            placement: LegacyRuntimePortalPlacement {
+                coord: LegacyMapTileCoord::new(9, 4),
+                side: Facing::Right,
+            },
+            tile_reservations: [LegacyMapTileCoord::new(9, 4), LegacyMapTileCoord::new(9, 5)],
+            wall_reservations: [
+                LegacyRuntimePortalWallReservation::new(8, 3, 0, 2),
+                LegacyRuntimePortalWallReservation::new(8, 3, 1, 0),
+                LegacyRuntimePortalWallReservation::new(8, 5, 1, 0),
+            ],
+        });
+        let movement = PlayerMovementState {
+            animation_direction: HorizontalDirection::Left,
+            ..PlayerMovementState::default()
+        };
+        let initial_player = LegacyRuntimePlayer::new(
+            PlayerBodyBounds::new(3.875, 4.875, 12.0 / 16.0, 12.0 / 16.0),
+            movement,
+        );
+        let config = LegacyRuntimeHarnessConfig {
+            frames: 1,
+            raw_dt: 0.0,
+            force_initial_player_seed: true,
+            initial_player,
+            input: LegacyRuntimeHarnessInput {
+                pointing_angle: 0.25,
+                ..LegacyRuntimeHarnessInput::default()
+            },
+            render: LegacyRuntimeRenderContext::new(0.0, 2.0),
+            initial_projected_portal_state: projected_portals,
+            ..LegacyRuntimeHarnessConfig::default()
+        };
+
+        let report = match run_legacy_runtime_harness(&source, config) {
+            Ok(report) => report,
+            Err(error) => panic!("{error}"),
+        };
+
+        let detail = report
+            .player_render_preview_detail_summary
+            .last_preview
+            .expect("harness should retain player render preview detail for CLI reporting");
+        let clone = detail
+            .preview
+            .portal_clone
+            .expect("ready projected portal pair should produce a render clone preview");
+        assert_eq!(detail.frame_index, 0);
+        assert_eq!(clone.entry_slot, LegacyRuntimePortalSlot::Portal1);
+        assert_eq!(clone.exit_slot, LegacyRuntimePortalSlot::Portal2);
+        assert_eq!(clone.output_animation_direction, HorizontalDirection::Right);
+        assert!(clone.animation_direction_flipped);
+        assert_eq!(
+            clone.direction_scale.source,
+            crate::shell::LegacyRuntimePlayerRenderDirectionScaleSource::PortalCloneAnimationDirection,
+        );
+        assert_eq!(clone.direction_scale.direction_scale, 2.0);
+        assert!(clone.scissor_reset_to_current);
+        assert!(!clone.live_rendering_executed);
+        assert!(!clone.live_player_mutated);
+        assert_eq!(report.final_player.body, initial_player.body);
     }
 
     #[test]
@@ -2775,6 +3080,264 @@ mod tests {
         assert!(
             last_frame.collisions.block_hits.is_empty(),
             "seeded fireball removal stays report-only and does not execute live collisions",
+        );
+    }
+
+    #[test]
+    fn harness_exposes_seeded_portal_projectile_render_preview_without_physics_or_portal_mutation()
+    {
+        let source = source_with_base_tile_atlases()
+            .with_file_contents("mappacks/smb/settings.txt", "name=Super Mario Bros.\n")
+            .with_file_contents("mappacks/smb/1-1.txt", level_source(3, "background=1"));
+        let projectile = LegacyRuntimePortalProjectileSnapshot::new(
+            4.25,
+            5.5,
+            0.25,
+            1.0,
+            LegacyColor {
+                r: 0.0,
+                g: 0.4,
+                b: 1.0,
+                a: 1.0,
+            },
+        )
+        .with_particle(LegacyRuntimePortalProjectileParticleSnapshot::new(
+            4.0,
+            5.25,
+            LegacyColor {
+                r: 0.0,
+                g: 0.2,
+                b: 0.5,
+                a: 0.6,
+            },
+        ));
+        let config = LegacyRuntimeHarnessConfig {
+            frames: 1,
+            render: LegacyRuntimeRenderContext::new(1.0, 2.0),
+            initial_portal_projectiles: vec![projectile],
+            ..LegacyRuntimeHarnessConfig::default()
+        };
+
+        let report = match run_legacy_runtime_harness(&source, config) {
+            Ok(report) => report,
+            Err(error) => panic!("{error}"),
+        };
+
+        assert_eq!(report.portal_projectile_render_preview_count, 1);
+        let detail = report
+            .portal_projectile_render_preview_detail_summary
+            .last_preview
+            .as_ref()
+            .expect("harness should retain portal projectile render metadata");
+        assert_eq!(detail.frame_index, 0);
+        assert_eq!(detail.preview.projectile_index, 0);
+        assert_eq!(detail.preview.particle_draws.len(), 1);
+        assert_eq!(detail.preview.particle_draws[0].draw_x_px, 96.0);
+        assert_eq!(
+            detail
+                .preview
+                .head_draw
+                .expect("active portal projectile should expose head draw metadata")
+                .draw_x_px,
+            104.0,
+        );
+        assert!(!detail.preview.live_rendering_executed);
+        assert!(!detail.preview.live_projectile_physics_migrated);
+        assert!(!detail.preview.live_portal_mutated);
+        assert_eq!(
+            report.portal_projectile_render_preview_detail_summary,
+            LegacyRuntimePortalProjectileRenderPreviewDetailSummary {
+                last_preview: Some(LegacyRuntimePortalProjectileRenderPreviewDetail {
+                    frame_index: 0,
+                    preview: detail.preview.clone(),
+                }),
+            },
+        );
+        assert_eq!(
+            report
+                .last_frame
+                .as_ref()
+                .expect("harness should retain final frame")
+                .portal_projectile_render_preview_count,
+            1,
+        );
+    }
+
+    #[test]
+    fn harness_exposes_seeded_emancipation_grill_render_preview_without_live_rendering() {
+        let source = source_with_base_tile_atlases()
+            .with_file_contents("mappacks/smb/settings.txt", "name=Super Mario Bros.\n")
+            .with_file_contents("mappacks/smb/1-1.txt", level_source(2, ""));
+        let grill = LegacyRuntimeEmancipationGrillSnapshot::horizontal(3.0, 4.0, 2.0, 5.0, 160.0)
+            .with_particle(LegacyRuntimeEmancipationGrillParticleSnapshot::new(
+                0.25,
+                LegacyRuntimeEmancipationGrillParticleDirection::Forward,
+                1.0,
+            ));
+        let config = LegacyRuntimeHarnessConfig {
+            frames: 1,
+            render: LegacyRuntimeRenderContext::new(1.0, 2.0),
+            initial_emancipation_grills: vec![grill],
+            ..LegacyRuntimeHarnessConfig::default()
+        };
+
+        let report = match run_legacy_runtime_harness(&source, config) {
+            Ok(report) => report,
+            Err(error) => panic!("{error}"),
+        };
+
+        assert_eq!(report.emancipation_grill_render_preview_count, 1);
+        let detail = report
+            .emancipation_grill_render_preview_detail_summary
+            .last_preview
+            .as_ref()
+            .expect("harness should retain emancipation grill render metadata");
+        assert_eq!(detail.frame_index, 0);
+        assert_eq!(detail.preview.grill_index, 0);
+        assert_eq!(
+            detail
+                .preview
+                .scissor
+                .expect("active grill should set scissor")
+                .x_px,
+            0.0,
+        );
+        assert_eq!(
+            detail
+                .preview
+                .line_rect
+                .expect("active grill should draw line rectangle")
+                .width_px,
+            160.0,
+        );
+        assert_eq!(detail.preview.particle_draws[0].draw_x_px, 40.0);
+        assert_eq!(detail.preview.side_draws[1].draw_x_px, 128.0);
+        assert!(detail.preview.scissor_cleared_after_particles);
+        assert!(detail.preview.color_reset_after_line);
+        assert!(!detail.preview.live_rendering_executed);
+        assert!(!detail.preview.live_grill_physics_migrated);
+        assert_eq!(
+            report.emancipation_grill_render_preview_detail_summary,
+            LegacyRuntimeEmancipationGrillRenderPreviewDetailSummary {
+                last_preview: Some(LegacyRuntimeEmancipationGrillRenderPreviewDetail {
+                    frame_index: 0,
+                    preview: detail.preview.clone(),
+                }),
+            },
+        );
+        assert_eq!(
+            report
+                .last_frame
+                .as_ref()
+                .expect("harness should retain final frame")
+                .emancipation_grill_render_preview_count,
+            1,
+        );
+    }
+
+    #[test]
+    fn harness_exposes_seeded_door_render_preview_without_live_rendering_or_entity_migration() {
+        let source = source_with_base_tile_atlases()
+            .with_file_contents("mappacks/smb/settings.txt", "name=Super Mario Bros.\n")
+            .with_file_contents("mappacks/smb/1-1.txt", level_source(2, ""));
+        let door = LegacyRuntimeDoorSnapshot::from_legacy_horizontal_coord(4.0, 5.0, 0.25);
+        let config = LegacyRuntimeHarnessConfig {
+            frames: 1,
+            render: LegacyRuntimeRenderContext::new(1.0, 2.0),
+            initial_doors: vec![door],
+            ..LegacyRuntimeHarnessConfig::default()
+        };
+
+        let report = match run_legacy_runtime_harness(&source, config) {
+            Ok(report) => report,
+            Err(error) => panic!("{error}"),
+        };
+
+        assert_eq!(report.door_render_preview_count, 1);
+        let detail = report
+            .door_render_preview_detail_summary
+            .last_preview
+            .as_ref()
+            .expect("harness should retain door render metadata");
+        assert_eq!(detail.frame_index, 0);
+        assert_eq!(detail.preview.door_index, 0);
+        assert_eq!(detail.preview.ymod_tiles, 0.0);
+        assert_eq!(detail.preview.part_draws[0].draw_x_px, 92.0);
+        assert_eq!(detail.preview.part_draws[2].origin_y_px, 2.0);
+        assert!(!detail.preview.live_rendering_executed);
+        assert!(!detail.preview.live_door_physics_migrated);
+        assert!(!detail.preview.live_door_entity_mutated);
+        assert_eq!(
+            report.door_render_preview_detail_summary,
+            LegacyRuntimeDoorRenderPreviewDetailSummary {
+                last_preview: Some(LegacyRuntimeDoorRenderPreviewDetail {
+                    frame_index: 0,
+                    preview: detail.preview.clone(),
+                }),
+            },
+        );
+        assert_eq!(
+            report
+                .last_frame
+                .as_ref()
+                .expect("harness should retain final frame")
+                .door_render_preview_count,
+            1,
+        );
+    }
+
+    #[test]
+    fn harness_exposes_seeded_wall_indicator_render_preview_without_live_rendering_or_entity_migration()
+     {
+        let source = source_with_base_tile_atlases()
+            .with_file_contents("mappacks/smb/settings.txt", "name=Super Mario Bros.\n")
+            .with_file_contents("mappacks/smb/1-1.txt", level_source(2, ""));
+        let indicator = LegacyRuntimeWallIndicatorSnapshot::from_legacy_coord(4.0, 5.0, true);
+        let config = LegacyRuntimeHarnessConfig {
+            frames: 1,
+            render: LegacyRuntimeRenderContext::new(1.0, 2.0),
+            initial_wall_indicators: vec![indicator],
+            ..LegacyRuntimeHarnessConfig::default()
+        };
+
+        let report = match run_legacy_runtime_harness(&source, config) {
+            Ok(report) => report,
+            Err(error) => panic!("{error}"),
+        };
+
+        assert_eq!(report.wall_indicator_render_preview_count, 1);
+        let detail = report
+            .wall_indicator_render_preview_detail_summary
+            .last_preview
+            .as_ref()
+            .expect("harness should retain wall indicator render metadata");
+        assert_eq!(detail.frame_index, 0);
+        assert_eq!(detail.preview.indicator_index, 0);
+        assert_eq!(detail.preview.snapshot, indicator);
+        assert_eq!(detail.preview.quad_index, 2);
+        assert_eq!(detail.preview.source_x_px, 16.0);
+        assert_eq!(detail.preview.draw_x_px, 64.0);
+        assert_eq!(detail.preview.draw_y_px, 112.0);
+        assert_eq!(detail.preview.color, LegacyColor::rgb(1.0, 1.0, 1.0));
+        assert!(!detail.preview.live_rendering_executed);
+        assert!(!detail.preview.live_wall_indicator_physics_migrated);
+        assert!(!detail.preview.live_wall_indicator_entity_mutated);
+        assert_eq!(
+            report.wall_indicator_render_preview_detail_summary,
+            LegacyRuntimeWallIndicatorRenderPreviewDetailSummary {
+                last_preview: Some(LegacyRuntimeWallIndicatorRenderPreviewDetail {
+                    frame_index: 0,
+                    preview: detail.preview,
+                }),
+            },
+        );
+        assert_eq!(
+            report
+                .last_frame
+                .as_ref()
+                .expect("harness should retain final frame")
+                .wall_indicator_render_preview_count,
+            1,
         );
     }
 
@@ -3774,6 +4337,7 @@ mod tests {
         );
         assert_eq!(report.portal_target_projected_player_source_count, 0);
         assert_eq!(report.portal_target_possible_count, 1);
+        assert_eq!(report.portal_aim_render_preview_count, 1);
         assert_eq!(report.portal_open_intent_count, 1);
         assert_eq!(report.portal_fizzle_intent_count, 0);
         assert_eq!(
@@ -3842,6 +4406,30 @@ mod tests {
         let placement = probe.placement.expect("portal target should be valid");
         assert_eq!(placement.coord, LegacyMapTileCoord::new(4, 4));
         assert_eq!(placement.side, Facing::Left);
+        let aim_preview = last_frame
+            .portal_aim_render_preview
+            .as_ref()
+            .expect("last frame should expose portal aim draw-loop metadata");
+        assert_eq!(aim_preview.dot_draws.len(), 1);
+        assert_eq!(aim_preview.dot_draws[0].draw_x_px, 37.0);
+        assert_eq!(
+            aim_preview
+                .crosshair
+                .expect("valid trace should expose crosshair metadata")
+                .draw_x_px,
+            48.0,
+        );
+        assert!(!aim_preview.live_rendering_executed);
+        assert!(!aim_preview.live_portal_mutated);
+        assert_eq!(
+            report.portal_aim_render_preview_detail_summary,
+            LegacyRuntimePortalAimRenderPreviewDetailSummary {
+                last_preview: Some(LegacyRuntimePortalAimRenderPreviewDetail {
+                    frame_index: 0,
+                    preview: aim_preview.clone(),
+                }),
+            },
+        );
         let outcome = last_frame
             .portal_outcome_intent
             .expect("requested valid portal target should expose an open intent");

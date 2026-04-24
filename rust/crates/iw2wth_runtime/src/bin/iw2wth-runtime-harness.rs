@@ -13,6 +13,7 @@ use iw2wth_runtime::{
     assets::FsLegacyAssetSource,
     audio::{LegacyAudioCommand, LegacySoundEffect},
     harness::{LegacyRuntimeHarnessConfig, LegacyRuntimeHarnessInput, run_legacy_runtime_harness},
+    render::LegacyColor,
     shell::{
         LegacyRuntimeBlockBounceCompletionReport, LegacyRuntimeBlockBounceItemSpawnIntent,
         LegacyRuntimeBlockContainedRewardRevealIntent,
@@ -21,6 +22,15 @@ use iw2wth_runtime::{
         LegacyRuntimeBreakableBlockCleanupAction, LegacyRuntimeBreakableBlockCleanupProjection,
         LegacyRuntimeBreakableBlockCleanupSource, LegacyRuntimeCoinBlockAnimationUpdateReport,
         LegacyRuntimeCoinBlockRewardIntent, LegacyRuntimeCoinCounterSource,
+        LegacyRuntimeDoorDirection, LegacyRuntimeDoorPartKind,
+        LegacyRuntimeDoorRenderIntentPreview, LegacyRuntimeDoorRenderPartPreview,
+        LegacyRuntimeDoorSnapshot, LegacyRuntimeEmancipationGrillDirection,
+        LegacyRuntimeEmancipationGrillLinePreview, LegacyRuntimeEmancipationGrillParticleDirection,
+        LegacyRuntimeEmancipationGrillParticleRenderPreview,
+        LegacyRuntimeEmancipationGrillParticleSnapshot,
+        LegacyRuntimeEmancipationGrillRenderIntentPreview,
+        LegacyRuntimeEmancipationGrillScissorPreview,
+        LegacyRuntimeEmancipationGrillSideRenderPreview, LegacyRuntimeEmancipationGrillSnapshot,
         LegacyRuntimeFireballCallback, LegacyRuntimeFireballCollisionAxis,
         LegacyRuntimeFireballCollisionProbe, LegacyRuntimeFireballCollisionProbeRequest,
         LegacyRuntimeFireballCollisionProbeSource, LegacyRuntimeFireballEnemyHitIntent,
@@ -31,21 +41,29 @@ use iw2wth_runtime::{
         LegacyRuntimePlayerBlockBounceSchedule, LegacyRuntimePlayerCeilingBlockHit,
         LegacyRuntimePlayerCoinPickup, LegacyRuntimePlayerCollisionAxis,
         LegacyRuntimePlayerPowerUp, LegacyRuntimePlayerRenderColorLayerPreview,
+        LegacyRuntimePlayerRenderDirectionScale, LegacyRuntimePlayerRenderDirectionScaleSource,
         LegacyRuntimePlayerRenderFrame, LegacyRuntimePlayerRenderHatPreview,
         LegacyRuntimePlayerRenderHatSize, LegacyRuntimePlayerRenderIntentPreview,
-        LegacyRuntimePlayerRenderQuad, LegacyRuntimePlayerRenderTintSource,
-        LegacyRuntimePlayerTileCollision, LegacyRuntimePortalBlockGuardSource,
-        LegacyRuntimePortalBlockedExitBounceAxis, LegacyRuntimePortalBlockedExitProbe,
-        LegacyRuntimePortalOutcomeIntent, LegacyRuntimePortalOutcomeKind,
-        LegacyRuntimePortalPairing, LegacyRuntimePortalPlacement, LegacyRuntimePortalSlot,
-        LegacyRuntimePortalTargetPlayerSource, LegacyRuntimePortalTraceHit,
-        LegacyRuntimePortalTransitAudioIntent, LegacyRuntimePortalTransitOutcomeKind,
-        LegacyRuntimePortalWallReservation, LegacyRuntimeProjectedFireballCountSnapshot,
-        LegacyRuntimeProjectedFireballCountSource, LegacyRuntimeProjectedFireballEnemyHitSnapshot,
+        LegacyRuntimePlayerRenderPortalClonePreview, LegacyRuntimePlayerRenderQuad,
+        LegacyRuntimePlayerRenderScissorPreview, LegacyRuntimePlayerRenderTintSource,
+        LegacyRuntimePlayerTileCollision, LegacyRuntimePortalAimCrosshairPreview,
+        LegacyRuntimePortalAimDotPreview, LegacyRuntimePortalAimRenderIntentPreview,
+        LegacyRuntimePortalBlockGuardSource, LegacyRuntimePortalBlockedExitBounceAxis,
+        LegacyRuntimePortalBlockedExitProbe, LegacyRuntimePortalOutcomeIntent,
+        LegacyRuntimePortalOutcomeKind, LegacyRuntimePortalPairing, LegacyRuntimePortalPlacement,
+        LegacyRuntimePortalProjectileHeadRenderPreview,
+        LegacyRuntimePortalProjectileParticleRenderPreview,
+        LegacyRuntimePortalProjectileRenderIntentPreview, LegacyRuntimePortalProjectileSnapshot,
+        LegacyRuntimePortalSlot, LegacyRuntimePortalTargetPlayerSource,
+        LegacyRuntimePortalTraceHit, LegacyRuntimePortalTransitAudioIntent,
+        LegacyRuntimePortalTransitOutcomeKind, LegacyRuntimePortalWallReservation,
+        LegacyRuntimeProjectedFireballCountSnapshot, LegacyRuntimeProjectedFireballCountSource,
+        LegacyRuntimeProjectedFireballEnemyHitSnapshot,
         LegacyRuntimeProjectedFireballProjectileCollisionSnapshot,
         LegacyRuntimeProjectedPlayerStateSource, LegacyRuntimeProjectedPortal,
         LegacyRuntimeScoreSource, LegacyRuntimeScrollingScoreAnimationUpdateReport,
         LegacyRuntimeTileChangeProjection, LegacyRuntimeTileChangeSource,
+        LegacyRuntimeWallIndicatorRenderIntentPreview, LegacyRuntimeWallIndicatorSnapshot,
         legacy_runtime_portal_reservation_projection,
     },
 };
@@ -90,7 +108,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     match report.player_render_preview_detail_summary.last_preview {
         Some(detail) => println!(
-            "player render preview: total={} last_frame={} last_index={} last_power_up={} last_size={} last_render_frame={} last_animation_state={:?} last_facing={} last_run_frame={} last_swim_frame={} last_ducking={} last_fire_animation_timer={:.6} last_fire_animation_active={} last_quad={} last_color_layers={} last_hat_draws={} last_draw_x={:.6} last_draw_y={:.6} last_scale={:.6} last_live_rendering_executed={} last_live_player_mutated={} last_detail={}",
+            "player render preview: total={} last_frame={} last_index={} last_power_up={} last_size={} last_render_frame={} last_animation_state={:?} last_facing={} last_run_frame={} last_swim_frame={} last_ducking={} last_fire_animation_timer={:.6} last_fire_animation_active={} last_quad={} last_color_layers={} last_hat_draws={} last_direction_scale={} last_portal_clone={} last_draw_x={:.6} last_draw_y={:.6} last_scale={:.6} last_live_rendering_executed={} last_live_player_mutated={} last_detail={}",
             report.player_render_preview_count,
             detail.frame_index,
             detail.preview.player_index,
@@ -107,6 +125,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             player_render_quad_label(detail.preview.quad),
             player_render_color_layers_label(&detail.preview.color_layers),
             player_render_hat_draws_label(&detail.preview.hat_draws, detail.preview.hat_draw_count),
+            player_render_direction_scale_label(detail.preview.direction_scale),
+            player_render_portal_clone_label(detail.preview.portal_clone),
             detail.preview.draw_x_px,
             detail.preview.draw_y_px,
             detail.preview.scale,
@@ -115,7 +135,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             player_render_preview_label(detail.preview),
         ),
         None => println!(
-            "player render preview: total={} last_frame=none last_index=none last_power_up=none last_size=none last_render_frame=none last_animation_state=none last_facing=none last_run_frame=none last_swim_frame=none last_ducking=none last_fire_animation_timer=none last_fire_animation_active=none last_quad=none last_color_layers=none last_hat_draws=none last_draw_x=none last_draw_y=none last_scale=none last_live_rendering_executed=none last_live_player_mutated=none last_detail=none",
+            "player render preview: total={} last_frame=none last_index=none last_power_up=none last_size=none last_render_frame=none last_animation_state=none last_facing=none last_run_frame=none last_swim_frame=none last_ducking=none last_fire_animation_timer=none last_fire_animation_active=none last_quad=none last_color_layers=none last_hat_draws=none last_direction_scale=none last_portal_clone=none last_draw_x=none last_draw_y=none last_scale=none last_live_rendering_executed=none last_live_player_mutated=none last_detail=none",
             report.player_render_preview_count,
         ),
     }
@@ -190,6 +210,107 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .fireball_render_preview_detail_summary
                 .last_suppressed_projected_removal_index
                 .map_or_else(|| "none".to_owned(), |index| index.to_string()),
+        ),
+    }
+    match &report
+        .portal_projectile_render_preview_detail_summary
+        .last_preview
+    {
+        Some(detail) => println!(
+            "portal projectile render preview: total={} last_frame={} last_index={} last_particle_count={} last_head={} last_first_particle={} last_particles_before_head={} last_live_rendering_executed={} last_live_projectile_physics_migrated={} last_live_portal_mutated={} last_detail={}",
+            report.portal_projectile_render_preview_count,
+            detail.frame_index,
+            detail.preview.projectile_index,
+            detail.preview.particle_draws.len(),
+            portal_projectile_head_label(detail.preview.head_draw),
+            portal_projectile_first_particle_label(&detail.preview),
+            bool_label(detail.preview.particles_drawn_before_head),
+            bool_label(detail.preview.live_rendering_executed),
+            bool_label(detail.preview.live_projectile_physics_migrated),
+            bool_label(detail.preview.live_portal_mutated),
+            portal_projectile_render_preview_label(&detail.preview),
+        ),
+        None => println!(
+            "portal projectile render preview: total={} last_frame=none last_index=none last_particle_count=0 last_head=none last_first_particle=none last_particles_before_head=none last_live_rendering_executed=none last_live_projectile_physics_migrated=none last_live_portal_mutated=none last_detail=none",
+            report.portal_projectile_render_preview_count,
+        ),
+    }
+    match &report
+        .emancipation_grill_render_preview_detail_summary
+        .last_preview
+    {
+        Some(detail) => println!(
+            "emancipation grill render preview: total={} last_frame={} last_index={} last_direction={} last_scissor={} last_line={} last_particle_count={} last_first_particle={} last_side_count={} last_first_side={} last_scissor_cleared_after_particles={} last_color_reset_after_line={} last_live_rendering_executed={} last_live_grill_physics_migrated={} last_detail={}",
+            report.emancipation_grill_render_preview_count,
+            detail.frame_index,
+            detail.preview.grill_index,
+            emancipation_grill_direction_label(detail.preview.snapshot.direction),
+            emancipation_grill_scissor_label(detail.preview.scissor),
+            emancipation_grill_line_label(detail.preview.line_rect),
+            detail.preview.particle_draws.len(),
+            emancipation_grill_first_particle_label(&detail.preview),
+            detail.preview.side_draws.len(),
+            emancipation_grill_first_side_label(&detail.preview),
+            bool_label(detail.preview.scissor_cleared_after_particles),
+            bool_label(detail.preview.color_reset_after_line),
+            bool_label(detail.preview.live_rendering_executed),
+            bool_label(detail.preview.live_grill_physics_migrated),
+            emancipation_grill_render_preview_label(&detail.preview),
+        ),
+        None => println!(
+            "emancipation grill render preview: total={} last_frame=none last_index=none last_direction=none last_scissor=none last_line=none last_particle_count=0 last_first_particle=none last_side_count=0 last_first_side=none last_scissor_cleared_after_particles=none last_color_reset_after_line=none last_live_rendering_executed=none last_live_grill_physics_migrated=none last_detail=none",
+            report.emancipation_grill_render_preview_count,
+        ),
+    }
+    match &report.door_render_preview_detail_summary.last_preview {
+        Some(detail) => println!(
+            "door render preview: total={} last_frame={} last_index={} last_direction={} last_timer={:.6} last_ymod={:.6} last_center_rotation_delta={:.6} last_part_count={} last_first_part={} last_live_rendering_executed={} last_live_door_physics_migrated={} last_live_door_entity_mutated={} last_detail={}",
+            report.door_render_preview_count,
+            detail.frame_index,
+            detail.preview.door_index,
+            door_direction_label(detail.preview.snapshot.direction),
+            detail.preview.snapshot.timer,
+            detail.preview.ymod_tiles,
+            detail.preview.center_rotation_delta,
+            detail.preview.part_draws.len(),
+            door_first_part_label(&detail.preview),
+            bool_label(detail.preview.live_rendering_executed),
+            bool_label(detail.preview.live_door_physics_migrated),
+            bool_label(detail.preview.live_door_entity_mutated),
+            door_render_preview_label(&detail.preview),
+        ),
+        None => println!(
+            "door render preview: total={} last_frame=none last_index=none last_direction=none last_timer=none last_ymod=none last_center_rotation_delta=none last_part_count=0 last_first_part=none last_live_rendering_executed=none last_live_door_physics_migrated=none last_live_door_entity_mutated=none last_detail=none",
+            report.door_render_preview_count,
+        ),
+    }
+    match report
+        .wall_indicator_render_preview_detail_summary
+        .last_preview
+    {
+        Some(detail) => println!(
+            "wall indicator render preview: total={} last_frame={} last_index={} last_lighted={} last_quad={} last_source=({:.6},{:.6},{:.6},{:.6}) last_draw=({:.6},{:.6}) last_image={} last_color={} last_live_rendering_executed={} last_live_wall_indicator_physics_migrated={} last_live_wall_indicator_entity_mutated={} last_detail={}",
+            report.wall_indicator_render_preview_count,
+            detail.frame_index,
+            detail.preview.indicator_index,
+            bool_label(detail.preview.snapshot.lighted),
+            detail.preview.quad_index,
+            detail.preview.source_x_px,
+            detail.preview.source_y_px,
+            detail.preview.source_w_px,
+            detail.preview.source_h_px,
+            detail.preview.draw_x_px,
+            detail.preview.draw_y_px,
+            detail.preview.image_path,
+            legacy_color_label(detail.preview.color),
+            bool_label(detail.preview.live_rendering_executed),
+            bool_label(detail.preview.live_wall_indicator_physics_migrated),
+            bool_label(detail.preview.live_wall_indicator_entity_mutated),
+            wall_indicator_render_preview_label(&detail.preview),
+        ),
+        None => println!(
+            "wall indicator render preview: total={} last_frame=none last_index=none last_lighted=none last_quad=none last_source=none last_draw=none last_image=none last_color=none last_live_rendering_executed=none last_live_wall_indicator_physics_migrated=none last_live_wall_indicator_entity_mutated=none last_detail=none",
+            report.wall_indicator_render_preview_count,
         ),
     }
     match report.fireball_map_target_detail_summary.last_probe {
@@ -374,7 +495,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ),
     }
     println!(
-        "map interactions: coin_pickups={} coin_counter_intents={} score_counter_intents={} scrolling_score_intents={} life_reward_counter_intents={} horizontal_collisions={} vertical_collisions={} ceiling_block_hits={} block_hit_portal_guard_suppressions={} block_hit_projected_portal_guard_suppressions={} block_bounce_schedules={} coin_block_reward_intents={} top_coin_collection_intents={} tile_change_projections={} projected_tile_change_snapshots={} breakable_block_cleanup_projections={} coin_block_animation_progressions={} coin_block_animation_prunes={} block_debris_animation_progressions={} block_debris_animation_prunes={} scrolling_score_animation_progressions={} scrolling_score_animation_prunes={} item_jump_request_intents={} enemy_shot_request_intents={} empty_breakable_block_destroy_intents={} contained_reward_reveal_intents={} block_bounce_progressions={} block_bounce_prunes={} block_bounce_item_spawn_intents={} many_coins_timer_progressions={} many_coins_timer_starts={} player_render_previews={} fireball_render_previews={} fireball_render_preview_suppressions={} fireball_map_target_probes={} fireball_collision_probes={} projected_fireball_projectile_collision_snapshots={} fireball_enemy_hit_intents={} projected_fireball_enemy_hit_snapshots={} portal_target_probes={} portal_target_projected_player_sources={} portal_targets_possible={} portal_open_intents={} portal_fizzle_intents={} portal_reservation_projections={} portal_replacement_summaries={} projected_portal_state_snapshots={} portal_pair_readiness_summaries={} portal_pairs_ready={} portal_transit_candidate_probes={} portal_transit_candidates_ready={} portalcoords_previews={} portal_transit_outcome_summaries={} portal_transit_audio_intents={} portal_transit_success_previews={} portal_transit_blocked_exit_bounce_previews={} portal_transit_projected_player_snapshots={} projected_player_state_snapshots={}",
+        "map interactions: coin_pickups={} coin_counter_intents={} score_counter_intents={} scrolling_score_intents={} life_reward_counter_intents={} horizontal_collisions={} vertical_collisions={} ceiling_block_hits={} block_hit_portal_guard_suppressions={} block_hit_projected_portal_guard_suppressions={} block_bounce_schedules={} coin_block_reward_intents={} top_coin_collection_intents={} tile_change_projections={} projected_tile_change_snapshots={} breakable_block_cleanup_projections={} coin_block_animation_progressions={} coin_block_animation_prunes={} block_debris_animation_progressions={} block_debris_animation_prunes={} scrolling_score_animation_progressions={} scrolling_score_animation_prunes={} item_jump_request_intents={} enemy_shot_request_intents={} empty_breakable_block_destroy_intents={} contained_reward_reveal_intents={} block_bounce_progressions={} block_bounce_prunes={} block_bounce_item_spawn_intents={} many_coins_timer_progressions={} many_coins_timer_starts={} player_render_previews={} fireball_render_previews={} fireball_render_preview_suppressions={} portal_projectile_render_previews={} emancipation_grill_render_previews={} door_render_previews={} wall_indicator_render_previews={} fireball_map_target_probes={} fireball_collision_probes={} projected_fireball_projectile_collision_snapshots={} fireball_enemy_hit_intents={} projected_fireball_enemy_hit_snapshots={} portal_aim_render_previews={} portal_target_probes={} portal_target_projected_player_sources={} portal_targets_possible={} portal_open_intents={} portal_fizzle_intents={} portal_reservation_projections={} portal_replacement_summaries={} projected_portal_state_snapshots={} portal_pair_readiness_summaries={} portal_pairs_ready={} portal_transit_candidate_probes={} portal_transit_candidates_ready={} portalcoords_previews={} portal_transit_outcome_summaries={} portal_transit_audio_intents={} portal_transit_success_previews={} portal_transit_blocked_exit_bounce_previews={} portal_transit_projected_player_snapshots={} projected_player_state_snapshots={}",
         report.coin_pickup_count,
         report.coin_counter_intent_count,
         report.score_counter_intent_count,
@@ -409,11 +530,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         report.player_render_preview_count,
         report.fireball_render_preview_count,
         report.fireball_render_preview_suppressed_count,
+        report.portal_projectile_render_preview_count,
+        report.emancipation_grill_render_preview_count,
+        report.door_render_preview_count,
+        report.wall_indicator_render_preview_count,
         report.fireball_map_target_probe_count,
         report.fireball_collision_probe_count,
         report.projected_fireball_projectile_collision_snapshot_count,
         report.fireball_enemy_hit_intent_count,
         report.projected_fireball_enemy_hit_snapshot_count,
+        report.portal_aim_render_preview_count,
         report.portal_target_probe_count,
         report.portal_target_projected_player_source_count,
         report.portal_target_possible_count,
@@ -1233,6 +1359,29 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .explicit_reservation_count,
         ),
     }
+    match &report.portal_aim_render_preview_detail_summary.last_preview {
+        Some(detail) => println!(
+            "portal aim render preview: total={} last_frame={} last_source={} last_source_x={:.6} last_source_y={:.6} last_target_x={:.6} last_target_y={:.6} last_possible={} last_requested_slot={} last_dot_count={} last_first_dot={} last_crosshair={} last_live_rendering_executed={} last_live_portal_mutated={}",
+            report.portal_aim_render_preview_count,
+            detail.frame_index,
+            portal_target_player_source_label(detail.preview.player_source),
+            detail.preview.source_x,
+            detail.preview.source_y,
+            detail.preview.target_x,
+            detail.preview.target_y,
+            bool_label(detail.preview.portal_possible),
+            portal_slot_label(detail.preview.requested_slot),
+            detail.preview.dot_draws.len(),
+            portal_aim_first_dot_label(&detail.preview),
+            portal_aim_crosshair_label(detail.preview.crosshair),
+            bool_label(detail.preview.live_rendering_executed),
+            bool_label(detail.preview.live_portal_mutated),
+        ),
+        None => println!(
+            "portal aim render preview: total={} last_frame=none last_source=none last_source_x=none last_source_y=none last_target_x=none last_target_y=none last_possible=none last_requested_slot=none last_dot_count=0 last_first_dot=none last_crosshair=none last_live_rendering_executed=none last_live_portal_mutated=none",
+            report.portal_aim_render_preview_count,
+        ),
+    }
     match report.portal_target_source_selection.last_selection {
         Some(selection) => println!(
             "portal target source selection: live_player_sources={} projected_portal_transit_sources={} last_frame={} last_source={} last_source_x={:.6} last_source_y={:.6} last_requested_slot={} last_aim={:.6}",
@@ -1845,6 +1994,284 @@ fn fireball_render_preview_label(preview: LegacyRuntimeFireballRenderIntentPrevi
     )
 }
 
+fn portal_projectile_head_label(
+    head: Option<LegacyRuntimePortalProjectileHeadRenderPreview>,
+) -> String {
+    match head {
+        Some(head) => format!(
+            "draw=({:.6},{:.6});color={};image={};origin=({:.6},{:.6});rotation={:.6};scale={:.6};live_rendering_executed={}",
+            head.draw_x_px,
+            head.draw_y_px,
+            legacy_color_label(head.color),
+            head.image_path,
+            head.origin_x_px,
+            head.origin_y_px,
+            head.rotation,
+            head.scale,
+            bool_label(head.live_rendering_executed),
+        ),
+        None => "none".to_owned(),
+    }
+}
+
+fn portal_projectile_particle_label(
+    particle: LegacyRuntimePortalProjectileParticleRenderPreview,
+) -> String {
+    format!(
+        "index={};draw=({:.6},{:.6});color={};image={};origin=({:.6},{:.6});rotation={:.6};scale={:.6};live_rendering_executed={}",
+        particle.particle_index,
+        particle.draw_x_px,
+        particle.draw_y_px,
+        legacy_color_label(particle.color),
+        particle.image_path,
+        particle.origin_x_px,
+        particle.origin_y_px,
+        particle.rotation,
+        particle.scale,
+        bool_label(particle.live_rendering_executed),
+    )
+}
+
+fn portal_projectile_first_particle_label(
+    preview: &LegacyRuntimePortalProjectileRenderIntentPreview,
+) -> String {
+    preview
+        .particle_draws
+        .first()
+        .copied()
+        .map(portal_projectile_particle_label)
+        .unwrap_or_else(|| "none".to_owned())
+}
+
+fn portal_projectile_render_preview_label(
+    preview: &LegacyRuntimePortalProjectileRenderIntentPreview,
+) -> String {
+    format!(
+        "index={};timer={:.6};time={:.6};particle_count={};head={};first_particle={};particles_drawn_before_head={};color_reset_after_draw={};live_rendering_executed={};live_projectile_physics_migrated={};live_portal_mutated={}",
+        preview.projectile_index,
+        preview.snapshot.timer,
+        preview.snapshot.time,
+        preview.particle_draws.len(),
+        portal_projectile_head_label(preview.head_draw),
+        portal_projectile_first_particle_label(preview),
+        bool_label(preview.particles_drawn_before_head),
+        bool_label(preview.color_reset_after_draw),
+        bool_label(preview.live_rendering_executed),
+        bool_label(preview.live_projectile_physics_migrated),
+        bool_label(preview.live_portal_mutated),
+    )
+}
+
+fn emancipation_grill_direction_label(
+    direction: LegacyRuntimeEmancipationGrillDirection,
+) -> &'static str {
+    match direction {
+        LegacyRuntimeEmancipationGrillDirection::Horizontal => "hor",
+        LegacyRuntimeEmancipationGrillDirection::Vertical => "ver",
+    }
+}
+
+fn emancipation_grill_particle_direction_label(
+    direction: LegacyRuntimeEmancipationGrillParticleDirection,
+) -> &'static str {
+    match direction {
+        LegacyRuntimeEmancipationGrillParticleDirection::Forward => "forward",
+        LegacyRuntimeEmancipationGrillParticleDirection::Backward => "backward",
+    }
+}
+
+fn emancipation_grill_scissor_label(
+    scissor: Option<LegacyRuntimeEmancipationGrillScissorPreview>,
+) -> String {
+    match scissor {
+        Some(scissor) => format!(
+            "x={:.6};y={:.6};w={:.6};h={:.6}",
+            scissor.x_px, scissor.y_px, scissor.width_px, scissor.height_px,
+        ),
+        None => "none".to_owned(),
+    }
+}
+
+fn emancipation_grill_line_label(
+    line: Option<LegacyRuntimeEmancipationGrillLinePreview>,
+) -> String {
+    match line {
+        Some(line) => format!(
+            "x={:.6};y={:.6};w={:.6};h={:.6};color={}",
+            line.x_px,
+            line.y_px,
+            line.width_px,
+            line.height_px,
+            legacy_color_label(line.color),
+        ),
+        None => "none".to_owned(),
+    }
+}
+
+fn emancipation_grill_particle_label(
+    particle: LegacyRuntimeEmancipationGrillParticleRenderPreview,
+) -> String {
+    format!(
+        "index={};progress={:.6};direction={};draw=({:.6},{:.6});image={};origin=({:.6},{:.6});rotation={:.6};scale={:.6};live_rendering_executed={}",
+        particle.particle_index,
+        particle.progress,
+        emancipation_grill_particle_direction_label(particle.direction),
+        particle.draw_x_px,
+        particle.draw_y_px,
+        particle.image_path,
+        particle.origin_x_px,
+        particle.origin_y_px,
+        particle.rotation,
+        particle.scale,
+        bool_label(particle.live_rendering_executed),
+    )
+}
+
+fn emancipation_grill_first_particle_label(
+    preview: &LegacyRuntimeEmancipationGrillRenderIntentPreview,
+) -> String {
+    preview
+        .particle_draws
+        .first()
+        .copied()
+        .map(emancipation_grill_particle_label)
+        .unwrap_or_else(|| "none".to_owned())
+}
+
+fn emancipation_grill_side_label(side: LegacyRuntimeEmancipationGrillSideRenderPreview) -> String {
+    format!(
+        "index={};draw=({:.6},{:.6});image={};rotation={:.6};scale={:.6};live_rendering_executed={}",
+        side.side_index,
+        side.draw_x_px,
+        side.draw_y_px,
+        side.image_path,
+        side.rotation,
+        side.scale,
+        bool_label(side.live_rendering_executed),
+    )
+}
+
+fn emancipation_grill_first_side_label(
+    preview: &LegacyRuntimeEmancipationGrillRenderIntentPreview,
+) -> String {
+    preview
+        .side_draws
+        .first()
+        .copied()
+        .map(emancipation_grill_side_label)
+        .unwrap_or_else(|| "none".to_owned())
+}
+
+fn emancipation_grill_render_preview_label(
+    preview: &LegacyRuntimeEmancipationGrillRenderIntentPreview,
+) -> String {
+    format!(
+        "index={};direction={};destroyed={};range={:.6};scissor={};line={};particle_count={};first_particle={};side_count={};first_side={};scissor_cleared_after_particles={};color_reset_after_line={};live_rendering_executed={};live_grill_physics_migrated={}",
+        preview.grill_index,
+        emancipation_grill_direction_label(preview.snapshot.direction),
+        bool_label(preview.snapshot.destroyed),
+        preview.snapshot.range_px,
+        emancipation_grill_scissor_label(preview.scissor),
+        emancipation_grill_line_label(preview.line_rect),
+        preview.particle_draws.len(),
+        emancipation_grill_first_particle_label(preview),
+        preview.side_draws.len(),
+        emancipation_grill_first_side_label(preview),
+        bool_label(preview.scissor_cleared_after_particles),
+        bool_label(preview.color_reset_after_line),
+        bool_label(preview.live_rendering_executed),
+        bool_label(preview.live_grill_physics_migrated),
+    )
+}
+
+fn door_direction_label(direction: LegacyRuntimeDoorDirection) -> &'static str {
+    match direction {
+        LegacyRuntimeDoorDirection::Horizontal => "hor",
+        LegacyRuntimeDoorDirection::Vertical => "ver",
+    }
+}
+
+fn door_part_kind_label(kind: LegacyRuntimeDoorPartKind) -> &'static str {
+    match kind {
+        LegacyRuntimeDoorPartKind::Piece => "piece",
+        LegacyRuntimeDoorPartKind::Center => "center",
+    }
+}
+
+fn door_part_label(part: LegacyRuntimeDoorRenderPartPreview) -> String {
+    format!(
+        "index={};kind={};draw=({:.6},{:.6});image={};origin=({:.6},{:.6});rotation={:.6};scale={:.6};live_rendering_executed={}",
+        part.part_index,
+        door_part_kind_label(part.kind),
+        part.draw_x_px,
+        part.draw_y_px,
+        part.image_path,
+        part.origin_x_px,
+        part.origin_y_px,
+        part.rotation,
+        part.scale,
+        bool_label(part.live_rendering_executed),
+    )
+}
+
+fn door_first_part_label(preview: &LegacyRuntimeDoorRenderIntentPreview) -> String {
+    preview
+        .part_draws
+        .first()
+        .copied()
+        .map(door_part_label)
+        .unwrap_or_else(|| "none".to_owned())
+}
+
+fn door_render_preview_label(preview: &LegacyRuntimeDoorRenderIntentPreview) -> String {
+    let parts = preview
+        .part_draws
+        .iter()
+        .copied()
+        .map(door_part_label)
+        .collect::<Vec<_>>()
+        .join("|");
+    format!(
+        "index={};direction={};open={};active={};timer={:.6};ymod={:.6};center_rotation_delta={:.6};parts={};live_rendering_executed={};live_door_physics_migrated={};live_door_entity_mutated={}",
+        preview.door_index,
+        door_direction_label(preview.snapshot.direction),
+        bool_label(preview.snapshot.open),
+        bool_label(preview.snapshot.active),
+        preview.snapshot.timer,
+        preview.ymod_tiles,
+        preview.center_rotation_delta,
+        parts,
+        bool_label(preview.live_rendering_executed),
+        bool_label(preview.live_door_physics_migrated),
+        bool_label(preview.live_door_entity_mutated),
+    )
+}
+
+fn wall_indicator_render_preview_label(
+    preview: &LegacyRuntimeWallIndicatorRenderIntentPreview,
+) -> String {
+    format!(
+        "index={};lighted={};quad={};source=({:.6},{:.6},{:.6},{:.6});draw=({:.6},{:.6});image={};rotation={:.6};scale=({:.6},{:.6});color={};live_rendering_executed={};live_wall_indicator_physics_migrated={};live_wall_indicator_entity_mutated={}",
+        preview.indicator_index,
+        bool_label(preview.snapshot.lighted),
+        preview.quad_index,
+        preview.source_x_px,
+        preview.source_y_px,
+        preview.source_w_px,
+        preview.source_h_px,
+        preview.draw_x_px,
+        preview.draw_y_px,
+        preview.image_path,
+        preview.rotation,
+        preview.scale_x,
+        preview.scale_y,
+        legacy_color_label(preview.color),
+        bool_label(preview.live_rendering_executed),
+        bool_label(preview.live_wall_indicator_physics_migrated),
+        bool_label(preview.live_wall_indicator_entity_mutated),
+    )
+}
+
 fn player_power_up_label(power_up: LegacyRuntimePlayerPowerUp) -> &'static str {
     match power_up {
         LegacyRuntimePlayerPowerUp::Small => "small",
@@ -1893,9 +2320,78 @@ fn player_render_tint_source_label(source: LegacyRuntimePlayerRenderTintSource) 
     }
 }
 
+fn player_render_direction_scale_source_label(
+    source: LegacyRuntimePlayerRenderDirectionScaleSource,
+) -> &'static str {
+    match source {
+        LegacyRuntimePlayerRenderDirectionScaleSource::PlayerPointingAngle => {
+            "player_pointingangle"
+        }
+        LegacyRuntimePlayerRenderDirectionScaleSource::PortalCloneAnimationDirection => {
+            "portal_clone_animation_direction"
+        }
+    }
+}
+
+fn player_render_direction_scale_label(
+    direction_scale: LegacyRuntimePlayerRenderDirectionScale,
+) -> String {
+    format!(
+        "source={},pointing_angle={:.6},animation_facing={},direction_scale={:.6},vertical_scale={:.6}",
+        player_render_direction_scale_source_label(direction_scale.source),
+        direction_scale.pointing_angle,
+        horizontal_direction_label(direction_scale.animation_facing),
+        direction_scale.direction_scale,
+        direction_scale.vertical_scale,
+    )
+}
+
+fn player_render_scissor_label(scissor: LegacyRuntimePlayerRenderScissorPreview) -> String {
+    format!(
+        "{:.6},{:.6},{:.6},{:.6}",
+        scissor.x_px, scissor.y_px, scissor.width_px, scissor.height_px,
+    )
+}
+
+fn player_render_portal_clone_label(
+    clone: Option<LegacyRuntimePlayerRenderPortalClonePreview>,
+) -> String {
+    match clone {
+        Some(clone) => format!(
+            "entry_slot={},exit_slot={},entry_facing={},exit_facing={},entry_scissor={},exit_scissor={},input_body=({:.6},{:.6},{:.6},{:.6}),output_body=({:.6},{:.6},{:.6},{:.6}),rotation=({:.6}->{:.6}),animation_direction={}->{},flipped={},draw=({:.6},{:.6}),direction_scale={},scissor_reset_to_current={},live_rendering_executed={},live_player_mutated={}",
+            portal_slot_label(Some(clone.entry_slot)),
+            portal_slot_label(Some(clone.exit_slot)),
+            facing_label(clone.entry_facing),
+            facing_label(clone.exit_facing),
+            player_render_scissor_label(clone.entry_scissor),
+            player_render_scissor_label(clone.exit_scissor),
+            clone.input_body.x,
+            clone.input_body.y,
+            clone.input_body.width,
+            clone.input_body.height,
+            clone.output_body.x,
+            clone.output_body.y,
+            clone.output_body.width,
+            clone.output_body.height,
+            clone.input_rotation,
+            clone.output_rotation,
+            horizontal_direction_label(clone.input_animation_direction),
+            horizontal_direction_label(clone.output_animation_direction),
+            clone.animation_direction_flipped,
+            clone.draw_x_px,
+            clone.draw_y_px,
+            player_render_direction_scale_label(clone.direction_scale),
+            clone.scissor_reset_to_current,
+            clone.live_rendering_executed,
+            clone.live_player_mutated,
+        ),
+        None => "none".to_owned(),
+    }
+}
+
 fn player_render_color_layer_label(layer: LegacyRuntimePlayerRenderColorLayerPreview) -> String {
     format!(
-        "order={},layer={},image={},tint={:.6}/{:.6}/{:.6},tint_source={},quad={},draw=({:.6},{:.6}),rotation={:.6},scale={:.6},live_rendering_executed={}",
+        "order={},layer={},image={},tint={:.6}/{:.6}/{:.6},tint_source={},quad={},draw=({:.6},{:.6}),rotation={:.6},scale={:.6},direction_scale={},live_rendering_executed={}",
         layer.draw_order,
         layer.graphic_layer_index,
         layer.image_path,
@@ -1908,6 +2404,7 @@ fn player_render_color_layer_label(layer: LegacyRuntimePlayerRenderColorLayerPre
         layer.draw_y_px,
         layer.rotation,
         layer.scale,
+        player_render_direction_scale_label(layer.direction_scale),
         layer.live_rendering_executed,
     )
 }
@@ -1931,7 +2428,7 @@ fn player_render_hat_size_label(size: LegacyRuntimePlayerRenderHatSize) -> &'sta
 
 fn player_render_hat_draw_label(hat: LegacyRuntimePlayerRenderHatPreview) -> String {
     format!(
-        "order={},slot={},hat={},size={},image={},tint={:.6}/{:.6}/{:.6},tint_source={},config=({},{},{}),offset=({},{}),stack_y={},after_layer={},before_layer={},draw=({:.6},{:.6}),origin=({},{}),rotation={:.6},direction_scale={:.6},vertical_scale={:.6},live_rendering_executed={}",
+        "order={},slot={},hat={},size={},image={},tint={:.6}/{:.6}/{:.6},tint_source={},config=({},{},{}),offset=({},{}),stack_y={},after_layer={},before_layer={},draw=({:.6},{:.6}),origin=({},{}),rotation={:.6},direction_scale={},live_rendering_executed={}",
         hat.draw_order,
         hat.hat_slot_index,
         hat.hat_id,
@@ -1954,8 +2451,7 @@ fn player_render_hat_draw_label(hat: LegacyRuntimePlayerRenderHatPreview) -> Str
         hat.origin_x_px,
         hat.origin_y_px,
         hat.rotation,
-        hat.direction_scale,
-        hat.vertical_scale,
+        player_render_direction_scale_label(hat.direction_scale),
         hat.live_rendering_executed,
     )
 }
@@ -1978,7 +2474,7 @@ fn player_render_hat_draws_label(
 
 fn player_render_preview_label(preview: LegacyRuntimePlayerRenderIntentPreview) -> String {
     format!(
-        "index={};power_up={};size={};render_frame={};animation_state={:?};facing={};run_frame={};swim_frame={};ducking={};fire_animation_timer={:.6};fire_animation_active={};image={};quad={};color_layers={};hat_draws={};draw=({:.6},{:.6});rotation={:.6};scale={:.6};live_rendering_executed={};live_player_mutated={}",
+        "index={};power_up={};size={};render_frame={};animation_state={:?};facing={};run_frame={};swim_frame={};ducking={};fire_animation_timer={:.6};fire_animation_active={};image={};quad={};color_layers={};hat_draws={};direction_scale={};portal_clone={};draw=({:.6},{:.6});rotation={:.6};scale={:.6};live_rendering_executed={};live_player_mutated={}",
         preview.player_index,
         player_power_up_label(preview.power_up),
         preview.size,
@@ -1994,6 +2490,8 @@ fn player_render_preview_label(preview: LegacyRuntimePlayerRenderIntentPreview) 
         player_render_quad_label(preview.quad),
         player_render_color_layers_label(&preview.color_layers),
         player_render_hat_draws_label(&preview.hat_draws, preview.hat_draw_count),
+        player_render_direction_scale_label(preview.direction_scale),
+        player_render_portal_clone_label(preview.portal_clone),
         preview.draw_x_px,
         preview.draw_y_px,
         preview.rotation,
@@ -2458,6 +2956,56 @@ fn wall_reservation_label(reservation: LegacyRuntimePortalWallReservation) -> St
     )
 }
 
+fn legacy_color_label(color: LegacyColor) -> String {
+    format!(
+        "{:.6}/{:.6}/{:.6}/{:.6}",
+        color.r, color.g, color.b, color.a
+    )
+}
+
+fn portal_aim_first_dot_label(preview: &LegacyRuntimePortalAimRenderIntentPreview) -> String {
+    preview
+        .dot_draws
+        .first()
+        .copied()
+        .map(portal_aim_dot_label)
+        .unwrap_or_else(|| "none".to_owned())
+}
+
+fn portal_aim_dot_label(dot: LegacyRuntimePortalAimDotPreview) -> String {
+    format!(
+        "index={},phase={:.6},draw=({:.6},{:.6}),radius={:.6},alpha={:.6},color={},image={},scale={:.6},live_rendering_executed={}",
+        dot.sequence_index,
+        dot.phase,
+        dot.draw_x_px,
+        dot.draw_y_px,
+        dot.radius_px,
+        dot.alpha,
+        legacy_color_label(dot.color),
+        dot.image_path,
+        dot.scale,
+        bool_label(dot.live_rendering_executed),
+    )
+}
+
+fn portal_aim_crosshair_label(crosshair: Option<LegacyRuntimePortalAimCrosshairPreview>) -> String {
+    match crosshair {
+        Some(crosshair) => format!(
+            "draw=({:.6},{:.6}),rotation={:.6},origin=({},{}),color={},image={},scale={:.6},live_rendering_executed={}",
+            crosshair.draw_x_px,
+            crosshair.draw_y_px,
+            crosshair.rotation,
+            crosshair.origin_x_px,
+            crosshair.origin_y_px,
+            legacy_color_label(crosshair.color),
+            crosshair.image_path,
+            crosshair.scale,
+            bool_label(crosshair.live_rendering_executed),
+        ),
+        None => "none".to_owned(),
+    }
+}
+
 fn projected_portal_slot_label(portal: Option<LegacyRuntimeProjectedPortal>) -> &'static str {
     match portal {
         Some(portal) => portal_slot_label(Some(portal.requested_slot)),
@@ -2764,6 +3312,40 @@ fn parse_args(args: Vec<String>) -> Result<(PathBuf, LegacyRuntimeHarnessConfig)
                     .initial_fireball_projectiles
                     .push(parse_fireball_projectile(&args, index, "--seed-fireball")?);
             }
+            "--seed-portal-projectile" => {
+                index += 1;
+                config
+                    .initial_portal_projectiles
+                    .push(parse_portal_projectile(
+                        &args,
+                        index,
+                        "--seed-portal-projectile",
+                    )?);
+            }
+            "--seed-emancipation-grill" => {
+                index += 1;
+                config
+                    .initial_emancipation_grills
+                    .push(parse_emancipation_grill(
+                        &args,
+                        index,
+                        "--seed-emancipation-grill",
+                    )?);
+            }
+            "--seed-door" => {
+                index += 1;
+                config
+                    .initial_doors
+                    .push(parse_door(&args, index, "--seed-door")?);
+            }
+            "--seed-wall-indicator" => {
+                index += 1;
+                config.initial_wall_indicators.push(parse_wall_indicator(
+                    &args,
+                    index,
+                    "--seed-wall-indicator",
+                )?);
+            }
             "--probe-fireball-collision" => {
                 index += 1;
                 config.fireball_collision_probe =
@@ -2782,6 +3364,10 @@ fn parse_args(args: Vec<String>) -> Result<(PathBuf, LegacyRuntimeHarnessConfig)
             "--aim" => {
                 index += 1;
                 input.pointing_angle = parse_value(&args, index, "--aim")?;
+            }
+            "--portal-dots-timer" => {
+                index += 1;
+                input.portal_dots_timer = parse_value(&args, index, "--portal-dots-timer")?;
             }
             "--seed-portal1" => {
                 index += 1;
@@ -2973,6 +3559,127 @@ fn parse_fireball_projectile(
     ))
 }
 
+fn parse_portal_projectile(
+    args: &[String],
+    index: usize,
+    flag: &str,
+) -> Result<LegacyRuntimePortalProjectileSnapshot, Box<dyn Error>> {
+    let value = next_value(args, index, flag)?;
+    let parts = split_csv(&value, flag, 7)?;
+    Ok(LegacyRuntimePortalProjectileSnapshot::new(
+        parse_csv_value(parts[0], flag, "x")?,
+        parse_csv_value(parts[1], flag, "y")?,
+        parse_csv_value(parts[2], flag, "timer")?,
+        parse_csv_value(parts[3], flag, "time")?,
+        LegacyColor {
+            r: parse_csv_value(parts[4], flag, "red")?,
+            g: parse_csv_value(parts[5], flag, "green")?,
+            b: parse_csv_value(parts[6], flag, "blue")?,
+            a: 1.0,
+        },
+    ))
+}
+
+fn parse_emancipation_grill(
+    args: &[String],
+    index: usize,
+    flag: &str,
+) -> Result<LegacyRuntimeEmancipationGrillSnapshot, Box<dyn Error>> {
+    let value = next_value(args, index, flag)?;
+    let parts = split_csv(&value, flag, 9)?;
+    let direction = parse_emancipation_grill_direction(parts[0], flag)?;
+    let x = parse_csv_value(parts[1], flag, "x")?;
+    let y = parse_csv_value(parts[2], flag, "y")?;
+    let start = parse_csv_value(parts[3], flag, "start")?;
+    let end = parse_csv_value(parts[4], flag, "end")?;
+    let range_px = parse_csv_value(parts[5], flag, "range px")?;
+    let particle = LegacyRuntimeEmancipationGrillParticleSnapshot::new(
+        parse_csv_value(parts[6], flag, "particle progress")?,
+        parse_emancipation_grill_particle_direction(parts[7], flag)?,
+        parse_csv_value(parts[8], flag, "particle modifier")?,
+    );
+    Ok(match direction {
+        LegacyRuntimeEmancipationGrillDirection::Horizontal => {
+            LegacyRuntimeEmancipationGrillSnapshot::horizontal(x, y, start, end, range_px)
+                .with_particle(particle)
+        }
+        LegacyRuntimeEmancipationGrillDirection::Vertical => {
+            LegacyRuntimeEmancipationGrillSnapshot::vertical(x, y, start, end, range_px)
+                .with_particle(particle)
+        }
+    })
+}
+
+fn parse_emancipation_grill_direction(
+    value: &str,
+    flag: &str,
+) -> Result<LegacyRuntimeEmancipationGrillDirection, Box<dyn Error>> {
+    match value {
+        "hor" | "horizontal" => Ok(LegacyRuntimeEmancipationGrillDirection::Horizontal),
+        "ver" | "vertical" => Ok(LegacyRuntimeEmancipationGrillDirection::Vertical),
+        _ => Err(format!("invalid value for {flag} direction: {value}").into()),
+    }
+}
+
+fn parse_emancipation_grill_particle_direction(
+    value: &str,
+    flag: &str,
+) -> Result<LegacyRuntimeEmancipationGrillParticleDirection, Box<dyn Error>> {
+    let direction = parse_csv_value(value, flag, "particle direction")?;
+    LegacyRuntimeEmancipationGrillParticleDirection::from_legacy_i32(direction)
+        .ok_or_else(|| format!("invalid value for {flag} particle direction: {value}").into())
+}
+
+fn parse_door(
+    args: &[String],
+    index: usize,
+    flag: &str,
+) -> Result<LegacyRuntimeDoorSnapshot, Box<dyn Error>> {
+    let value = next_value(args, index, flag)?;
+    let parts = split_csv(&value, flag, 6)?;
+    let direction = parse_door_direction(parts[0], flag)?;
+    let cox = parse_csv_value(parts[1], flag, "coord x")?;
+    let coy = parse_csv_value(parts[2], flag, "coord y")?;
+    let timer = parse_csv_value(parts[3], flag, "timer")?;
+    let open = parse_csv_value(parts[4], flag, "open")?;
+    let active = parse_csv_value(parts[5], flag, "active")?;
+    Ok(match direction {
+        LegacyRuntimeDoorDirection::Horizontal => {
+            LegacyRuntimeDoorSnapshot::from_legacy_horizontal_coord(cox, coy, timer)
+        }
+        LegacyRuntimeDoorDirection::Vertical => {
+            LegacyRuntimeDoorSnapshot::from_legacy_vertical_coord(cox, coy, timer)
+        }
+    }
+    .with_open(open)
+    .with_active(active))
+}
+
+fn parse_door_direction(
+    value: &str,
+    flag: &str,
+) -> Result<LegacyRuntimeDoorDirection, Box<dyn Error>> {
+    match value {
+        "hor" | "horizontal" => Ok(LegacyRuntimeDoorDirection::Horizontal),
+        "ver" | "vertical" => Ok(LegacyRuntimeDoorDirection::Vertical),
+        _ => Err(format!("invalid value for {flag} direction: {value}").into()),
+    }
+}
+
+fn parse_wall_indicator(
+    args: &[String],
+    index: usize,
+    flag: &str,
+) -> Result<LegacyRuntimeWallIndicatorSnapshot, Box<dyn Error>> {
+    let value = next_value(args, index, flag)?;
+    let parts = split_csv(&value, flag, 3)?;
+    Ok(LegacyRuntimeWallIndicatorSnapshot::from_legacy_coord(
+        parse_csv_value(parts[0], flag, "x")?,
+        parse_csv_value(parts[1], flag, "y")?,
+        parse_csv_value(parts[2], flag, "lighted")?,
+    ))
+}
+
 fn parse_fireball_collision_probe(
     args: &[String],
     index: usize,
@@ -3124,7 +3831,7 @@ fn print_usage() {
         "usage: cargo run --manifest-path rust/Cargo.toml -p iw2wth_runtime --bin iw2wth-runtime-harness -- [options]"
     );
     println!(
-        "options: --repo-root PATH --mappack NAME --level FILE --world N --level-index N --sublevel N --frames N --raw-dt SECONDS --left --right --run --fire --fire-flower --fire-ducking --fireball-count N --seed-fireball X,Y,DIRECTION --probe-fireball-collision INDEX,AXIS,TARGET --seed-fireball-enemy TARGET,INDEX,X,Y,W,H,HAS_SHOTTED_HANDLER --portal1 --portal2 --aim RADIANS --seed-portal1 X,Y,SIDE --seed-portal2 X,Y,SIDE --player-body X,Y,W,H --player-speed X,Y --seed-jump-item KIND,INDEX,X,Y,W,H,HAS_JUMP_HANDLER --seed-top-enemy INDEX,X,Y,W,H,HAS_SHOTTED_HANDLER --seed-many-coins-timer X,Y,REMAINING"
+        "options: --repo-root PATH --mappack NAME --level FILE --world N --level-index N --sublevel N --frames N --raw-dt SECONDS --left --right --run --fire --fire-flower --fire-ducking --fireball-count N --seed-fireball X,Y,DIRECTION --seed-portal-projectile X,Y,TIMER,TIME,R,G,B --seed-emancipation-grill DIR,X,Y,START,END,RANGE,PARTICLE_PROGRESS,PARTICLE_DIR,PARTICLE_MOD --seed-door DIR,COX,COY,TIMER,OPEN,ACTIVE --seed-wall-indicator X,Y,LIGHTED --probe-fireball-collision INDEX,AXIS,TARGET --seed-fireball-enemy TARGET,INDEX,X,Y,W,H,HAS_SHOTTED_HANDLER --portal1 --portal2 --aim RADIANS --portal-dots-timer SECONDS --seed-portal1 X,Y,SIDE --seed-portal2 X,Y,SIDE --player-body X,Y,W,H --player-speed X,Y --seed-jump-item KIND,INDEX,X,Y,W,H,HAS_JUMP_HANDLER --seed-top-enemy INDEX,X,Y,W,H,HAS_SHOTTED_HANDLER --seed-many-coins-timer X,Y,REMAINING"
     );
 }
 
@@ -3136,6 +3843,7 @@ mod tests {
     use iw2wth_runtime::shell::{
         LegacyRuntimeFireballCallbackMetadata, LegacyRuntimeFireballRenderQuad,
         LegacyRuntimePlayer, LegacyRuntimePlayerRenderTint,
+        LegacyRuntimePortalProjectileParticleSnapshot,
     };
 
     #[test]
@@ -3213,6 +3921,8 @@ mod tests {
             "1".to_owned(),
             "--aim".to_owned(),
             "0.25".to_owned(),
+            "--portal-dots-timer".to_owned(),
+            "0.4".to_owned(),
         ])
         .expect("fireball launch flags should parse");
 
@@ -3221,6 +3931,7 @@ mod tests {
         assert!(!config.input.fire_ducking);
         assert_eq!(config.input.active_fireball_count, 1);
         assert_eq!(config.input.pointing_angle, 0.25);
+        assert_eq!(config.input.portal_dots_timer, 0.4);
     }
 
     #[test]
@@ -3235,6 +3946,94 @@ mod tests {
         assert_eq!(projectile.speed_x, -15.0);
         assert!(projectile.active);
         assert!(!projectile.destroy);
+    }
+
+    #[test]
+    fn parse_args_configures_seeded_portal_projectile_render_input() {
+        let (_, config) = parse_args(vec![
+            "--seed-portal-projectile".to_owned(),
+            "4.25,5.5,0.25,1.0,0,0.4,1".to_owned(),
+        ])
+        .expect("seeded portal projectile flag should parse");
+
+        assert_eq!(config.initial_portal_projectiles.len(), 1);
+        let projectile = &config.initial_portal_projectiles[0];
+        assert_eq!(projectile.x, 4.25);
+        assert_eq!(projectile.y, 5.5);
+        assert_eq!(projectile.timer, 0.25);
+        assert_eq!(projectile.time, 1.0);
+        assert_eq!(
+            projectile.color,
+            LegacyColor {
+                r: 0.0,
+                g: 0.4,
+                b: 1.0,
+                a: 1.0,
+            },
+        );
+        assert!(projectile.particles.is_empty());
+    }
+
+    #[test]
+    fn parse_args_configures_seeded_emancipation_grill_render_input() {
+        let (_, config) = parse_args(vec![
+            "--seed-emancipation-grill".to_owned(),
+            "hor,3,4,2,5,160,0.25,1,1".to_owned(),
+        ])
+        .expect("seeded emancipation grill flag should parse");
+
+        assert_eq!(config.initial_emancipation_grills.len(), 1);
+        let grill = &config.initial_emancipation_grills[0];
+        assert_eq!(
+            grill.direction,
+            LegacyRuntimeEmancipationGrillDirection::Horizontal
+        );
+        assert_eq!(grill.x, 3.0);
+        assert_eq!(grill.y, 4.0);
+        assert_eq!(grill.start, 2.0);
+        assert_eq!(grill.end, 5.0);
+        assert_eq!(grill.range_px, 160.0);
+        assert!(!grill.destroyed);
+        assert_eq!(grill.particles.len(), 1);
+        assert_eq!(grill.particles[0].progress, 0.25);
+        assert_eq!(
+            grill.particles[0].direction,
+            LegacyRuntimeEmancipationGrillParticleDirection::Forward,
+        );
+        assert_eq!(grill.particles[0].modifier_px, 1.0);
+    }
+
+    #[test]
+    fn parse_args_configures_seeded_door_render_input() {
+        let (_, config) = parse_args(vec![
+            "--seed-door".to_owned(),
+            "hor,4,5,0.25,false,true".to_owned(),
+        ])
+        .expect("seeded door flag should parse");
+
+        assert_eq!(config.initial_doors.len(), 1);
+        let door = config.initial_doors[0];
+        assert_eq!(door.direction, LegacyRuntimeDoorDirection::Horizontal);
+        assert_eq!(door.x, 3.0);
+        assert_eq!(door.y, 4.25);
+        assert_eq!(door.timer, 0.25);
+        assert!(!door.open);
+        assert!(door.active);
+    }
+
+    #[test]
+    fn parse_args_configures_seeded_wall_indicator_render_input() {
+        let (_, config) = parse_args(vec![
+            "--seed-wall-indicator".to_owned(),
+            "4,5,true".to_owned(),
+        ])
+        .expect("seeded wall indicator flag should parse");
+
+        assert_eq!(config.initial_wall_indicators.len(), 1);
+        let indicator = config.initial_wall_indicators[0];
+        assert_eq!(indicator.x, 4.0);
+        assert_eq!(indicator.y, 5.0);
+        assert!(indicator.lighted);
     }
 
     #[test]
@@ -3497,6 +4296,13 @@ mod tests {
             atlas_width_px: 512,
             atlas_height_px: 256,
         };
+        let direction_scale = LegacyRuntimePlayerRenderDirectionScale {
+            source: LegacyRuntimePlayerRenderDirectionScaleSource::PlayerPointingAngle,
+            pointing_angle: 0.25,
+            animation_facing: HorizontalDirection::Left,
+            direction_scale: -2.0,
+            vertical_scale: 2.0,
+        };
         let color_layers = [
             LegacyRuntimePlayerRenderColorLayerPreview {
                 draw_order: 0,
@@ -3513,6 +4319,7 @@ mod tests {
                 draw_y_px: 102.0,
                 rotation: 0.0,
                 scale: 2.0,
+                direction_scale,
                 live_rendering_executed: false,
             },
             LegacyRuntimePlayerRenderColorLayerPreview {
@@ -3530,6 +4337,7 @@ mod tests {
                 draw_y_px: 102.0,
                 rotation: 0.0,
                 scale: 2.0,
+                direction_scale,
                 live_rendering_executed: false,
             },
             LegacyRuntimePlayerRenderColorLayerPreview {
@@ -3547,6 +4355,7 @@ mod tests {
                 draw_y_px: 102.0,
                 rotation: 0.0,
                 scale: 2.0,
+                direction_scale,
                 live_rendering_executed: false,
             },
             LegacyRuntimePlayerRenderColorLayerPreview {
@@ -3564,6 +4373,7 @@ mod tests {
                 draw_y_px: 102.0,
                 rotation: 0.0,
                 scale: 2.0,
+                direction_scale,
                 live_rendering_executed: false,
             },
         ];
@@ -3593,8 +4403,13 @@ mod tests {
             origin_x_px: 0,
             origin_y_px: 0,
             rotation: 0.0,
-            direction_scale: 0.0,
-            vertical_scale: 0.0,
+            direction_scale: LegacyRuntimePlayerRenderDirectionScale {
+                source: LegacyRuntimePlayerRenderDirectionScaleSource::PlayerPointingAngle,
+                pointing_angle: 0.0,
+                animation_facing: HorizontalDirection::Right,
+                direction_scale: 0.0,
+                vertical_scale: 0.0,
+            },
             live_rendering_executed: false,
         };
         let hat_draws = [
@@ -3624,8 +4439,7 @@ mod tests {
                 origin_x_px: 4,
                 origin_y_px: 16,
                 rotation: 0.0,
-                direction_scale: -2.0,
-                vertical_scale: 2.0,
+                direction_scale,
                 live_rendering_executed: false,
             },
             empty_hat_draw,
@@ -3655,13 +4469,417 @@ mod tests {
             draw_y_px: 102.0,
             rotation: 0.0,
             scale: 2.0,
+            direction_scale,
+            portal_clone: None,
             live_rendering_executed: false,
             live_player_mutated: false,
         };
 
         assert_eq!(
-            player_render_preview_label(preview),
-            "index=0;power_up=fire;size=3;render_frame=big_duck;animation_state=Running;facing=left;run_frame=2;swim_frame=1;ducking=true;fire_animation_timer=0.050000;fire_animation_active=true;image=graphics/SMB/player/bigmarioanimations.png;quad=260,72,20,36@512x256;color_layers=order=0,layer=1,image=graphics/SMB/player/bigmarioanimations1.png,tint=0.988235/0.847059/0.658824,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=1,layer=2,image=graphics/SMB/player/bigmarioanimations2.png,tint=0.847059/0.156863/0.000000,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=2,layer=3,image=graphics/SMB/player/bigmarioanimations3.png,tint=0.988235/0.596078/0.219608,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=3,layer=0,image=graphics/SMB/player/bigmarioanimations0.png,tint=1.000000/1.000000/1.000000,tint_source=white,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false;hat_draws=order=0,slot=0,hat=1,size=big,image=graphics/SMB/bighats/standard.png,tint=0.988235/0.847059/0.658824,tint_source=flower_color,config=(0,0,4),offset=(-5,-4),stack_y=0,after_layer=3,before_layer=0,draw=(36.000000,102.000000),origin=(4,16),rotation=0.000000,direction_scale=-2.000000,vertical_scale=2.000000,live_rendering_executed=false;draw=(36.000000,102.000000);rotation=0.000000;scale=2.000000;live_rendering_executed=false;live_player_mutated=false",
+            player_render_direction_scale_label(direction_scale),
+            "source=player_pointingangle,pointing_angle=0.250000,animation_facing=left,direction_scale=-2.000000,vertical_scale=2.000000",
+        );
+        let label = player_render_preview_label(preview);
+        assert!(label.contains("facing=left;run_frame=2"));
+        assert!(label.contains("quad=260,72,20,36@512x256"));
+        assert!(label.contains(
+            "color_layers=order=0,layer=1,image=graphics/SMB/player/bigmarioanimations1.png"
+        ));
+        assert!(label.contains("direction_scale=source=player_pointingangle,pointing_angle=0.250000,animation_facing=left,direction_scale=-2.000000,vertical_scale=2.000000"));
+        assert!(label.contains(
+            "hat_draws=order=0,slot=0,hat=1,size=big,image=graphics/SMB/bighats/standard.png"
+        ));
+        assert!(label.contains("portal_clone=none"));
+        assert!(label.ends_with(
+            "draw=(36.000000,102.000000);rotation=0.000000;scale=2.000000;live_rendering_executed=false;live_player_mutated=false",
+        ));
+
+        let portal_clone = LegacyRuntimePlayerRenderPortalClonePreview {
+            entry_slot: LegacyRuntimePortalSlot::Portal1,
+            exit_slot: LegacyRuntimePortalSlot::Portal2,
+            entry_facing: Facing::Right,
+            exit_facing: Facing::Right,
+            entry_scissor: LegacyRuntimePlayerRenderScissorPreview {
+                x_px: 160.0,
+                y_px: 80.0,
+                width_px: 128.0,
+                height_px: 192.0,
+            },
+            exit_scissor: LegacyRuntimePlayerRenderScissorPreview {
+                x_px: 288.0,
+                y_px: 16.0,
+                width_px: 128.0,
+                height_px: 192.0,
+            },
+            input_body: PlayerBodyBounds::new(3.875, 4.875, 0.75, 0.75),
+            output_body: PlayerBodyBounds::new(9.375, 2.875, 0.75, 0.75),
+            input_rotation: 0.0,
+            output_rotation: 0.0,
+            input_animation_direction: HorizontalDirection::Left,
+            output_animation_direction: HorizontalDirection::Right,
+            animation_direction_flipped: true,
+            draw_x_px: 312.0,
+            draw_y_px: 86.0,
+            direction_scale: LegacyRuntimePlayerRenderDirectionScale {
+                source:
+                    LegacyRuntimePlayerRenderDirectionScaleSource::PortalCloneAnimationDirection,
+                pointing_angle: 0.25,
+                animation_facing: HorizontalDirection::Right,
+                direction_scale: 2.0,
+                vertical_scale: 2.0,
+            },
+            scissor_reset_to_current: true,
+            live_rendering_executed: false,
+            live_player_mutated: false,
+        };
+        assert_eq!(
+            player_render_portal_clone_label(Some(portal_clone)),
+            "entry_slot=portal1,exit_slot=portal2,entry_facing=right,exit_facing=right,entry_scissor=160.000000,80.000000,128.000000,192.000000,exit_scissor=288.000000,16.000000,128.000000,192.000000,input_body=(3.875000,4.875000,0.750000,0.750000),output_body=(9.375000,2.875000,0.750000,0.750000),rotation=(0.000000->0.000000),animation_direction=left->right,flipped=true,draw=(312.000000,86.000000),direction_scale=source=portal_clone_animation_direction,pointing_angle=0.250000,animation_facing=right,direction_scale=2.000000,vertical_scale=2.000000,scissor_reset_to_current=true,live_rendering_executed=false,live_player_mutated=false",
+        );
+    }
+
+    #[test]
+    fn cli_labels_portal_aim_render_preview_metadata() {
+        let dot = LegacyRuntimePortalAimDotPreview {
+            sequence_index: 1,
+            phase: 0.0,
+            x_px: 38.0,
+            y_px: 48.0,
+            draw_x_px: 37.0,
+            draw_y_px: 47.0,
+            radius_px: 0.0,
+            alpha: 0.0,
+            color: LegacyColor {
+                r: 0.0,
+                g: 1.0,
+                b: 0.0,
+                a: 0.0,
+            },
+            image_path: "graphics/SMB/portaldot.png",
+            scale: 1.0,
+            live_rendering_executed: false,
+        };
+        let crosshair = LegacyRuntimePortalAimCrosshairPreview {
+            x_px: 48.0,
+            y_px: 47.29,
+            draw_x_px: 48.0,
+            draw_y_px: 47.0,
+            rotation: std::f32::consts::FRAC_PI_2 * 3.0,
+            origin_x_px: 4,
+            origin_y_px: 8,
+            color: LegacyColor {
+                r: 0.0,
+                g: 1.0,
+                b: 0.0,
+                a: 1.0,
+            },
+            image_path: "graphics/SMB/portalcrosshair.png",
+            scale: 1.0,
+            live_rendering_executed: false,
+        };
+        let preview = LegacyRuntimePortalAimRenderIntentPreview {
+            player_source: LegacyRuntimePortalTargetPlayerSource::LivePlayer,
+            source_x: 2.375,
+            source_y: 3.5,
+            pointing_angle: -1.5,
+            requested_slot: Some(LegacyRuntimePortalSlot::Portal1),
+            trace_hit: Some(LegacyRuntimePortalTraceHit {
+                coord: LegacyMapTileCoord::new(4, 4),
+                side: Facing::Left,
+                tendency: -1,
+                impact_x: 3.0,
+                impact_y: 3.455_678,
+            }),
+            placement: Some(LegacyRuntimePortalPlacement {
+                coord: LegacyMapTileCoord::new(4, 4),
+                side: Facing::Left,
+            }),
+            portal_possible: true,
+            target_x: 3.0,
+            target_y: 3.455_678,
+            distance_tiles: 0.626_571,
+            dots_timer: 0.0,
+            dots_time: 0.8,
+            dots_distance_tiles: 1.2,
+            dots_inner_radius_px: 10.0,
+            dots_outer_radius_px: 70.0,
+            dot_draws: vec![dot],
+            crosshair: Some(crosshair),
+            color_reset_after_dots: true,
+            color_reset_after_crosshair: true,
+            live_rendering_executed: false,
+            live_portal_mutated: false,
+        };
+
+        assert_eq!(
+            portal_aim_first_dot_label(&preview),
+            "index=1,phase=0.000000,draw=(37.000000,47.000000),radius=0.000000,alpha=0.000000,color=0.000000/1.000000/0.000000/0.000000,image=graphics/SMB/portaldot.png,scale=1.000000,live_rendering_executed=false",
+        );
+        assert_eq!(
+            portal_aim_crosshair_label(preview.crosshair),
+            "draw=(48.000000,47.000000),rotation=4.712389,origin=(4,8),color=0.000000/1.000000/0.000000/1.000000,image=graphics/SMB/portalcrosshair.png,scale=1.000000,live_rendering_executed=false",
+        );
+    }
+
+    #[test]
+    fn cli_labels_portal_projectile_render_preview_metadata() {
+        let preview = LegacyRuntimePortalProjectileRenderIntentPreview {
+            projectile_index: 0,
+            snapshot: LegacyRuntimePortalProjectileSnapshot::new(
+                4.25,
+                5.5,
+                0.25,
+                1.0,
+                LegacyColor {
+                    r: 0.0,
+                    g: 0.4,
+                    b: 1.0,
+                    a: 1.0,
+                },
+            )
+            .with_particle(LegacyRuntimePortalProjectileParticleSnapshot::new(
+                4.0,
+                5.25,
+                LegacyColor {
+                    r: 0.0,
+                    g: 0.2,
+                    b: 0.5,
+                    a: 0.6,
+                },
+            )),
+            particle_draws: vec![LegacyRuntimePortalProjectileParticleRenderPreview {
+                particle_index: 0,
+                x: 4.0,
+                y: 5.25,
+                draw_x_px: 96.0,
+                draw_y_px: 152.0,
+                color: LegacyColor {
+                    r: 0.0,
+                    g: 0.2,
+                    b: 0.5,
+                    a: 0.6,
+                },
+                image_path: "graphics/SMB/portalprojectileparticle.png",
+                origin_x_px: 0.5,
+                origin_y_px: 0.5,
+                rotation: 0.0,
+                scale: 2.0,
+                live_rendering_executed: false,
+            }],
+            head_draw: Some(LegacyRuntimePortalProjectileHeadRenderPreview {
+                x: 4.25,
+                y: 5.5,
+                draw_x_px: 104.0,
+                draw_y_px: 160.0,
+                color: LegacyColor {
+                    r: 0.0,
+                    g: 0.4,
+                    b: 1.0,
+                    a: 1.0,
+                },
+                image_path: "graphics/SMB/portalprojectile.png",
+                origin_x_px: 3.0,
+                origin_y_px: 3.0,
+                rotation: 0.0,
+                scale: 2.0,
+                live_rendering_executed: false,
+            }),
+            particles_drawn_before_head: true,
+            color_reset_after_draw: false,
+            live_rendering_executed: false,
+            live_projectile_physics_migrated: false,
+            live_portal_mutated: false,
+        };
+
+        assert_eq!(
+            portal_projectile_first_particle_label(&preview),
+            "index=0;draw=(96.000000,152.000000);color=0.000000/0.200000/0.500000/0.600000;image=graphics/SMB/portalprojectileparticle.png;origin=(0.500000,0.500000);rotation=0.000000;scale=2.000000;live_rendering_executed=false",
+        );
+        assert_eq!(
+            portal_projectile_head_label(preview.head_draw),
+            "draw=(104.000000,160.000000);color=0.000000/0.400000/1.000000/1.000000;image=graphics/SMB/portalprojectile.png;origin=(3.000000,3.000000);rotation=0.000000;scale=2.000000;live_rendering_executed=false",
+        );
+        assert!(portal_projectile_render_preview_label(&preview).contains(
+            "particles_drawn_before_head=true;color_reset_after_draw=false;live_rendering_executed=false;live_projectile_physics_migrated=false;live_portal_mutated=false",
+        ));
+    }
+
+    #[test]
+    fn cli_labels_emancipation_grill_render_preview_metadata() {
+        let preview = LegacyRuntimeEmancipationGrillRenderIntentPreview {
+            grill_index: 0,
+            snapshot: LegacyRuntimeEmancipationGrillSnapshot::horizontal(3.0, 4.0, 2.0, 5.0, 160.0)
+                .with_particle(LegacyRuntimeEmancipationGrillParticleSnapshot::new(
+                    0.25,
+                    LegacyRuntimeEmancipationGrillParticleDirection::Forward,
+                    1.0,
+                )),
+            scissor: Some(LegacyRuntimeEmancipationGrillScissorPreview {
+                x_px: 0.0,
+                y_px: 92.0,
+                width_px: 32.0,
+                height_px: 8.0,
+            }),
+            line_rect: Some(LegacyRuntimeEmancipationGrillLinePreview {
+                x_px: 0.0,
+                y_px: 92.0,
+                width_px: 160.0,
+                height_px: 8.0,
+                color: LegacyColor {
+                    r: 0.4,
+                    g: 0.4,
+                    b: 1.0,
+                    a: 0.04,
+                },
+            }),
+            particle_draws: vec![LegacyRuntimeEmancipationGrillParticleRenderPreview {
+                particle_index: 0,
+                progress: 0.25,
+                direction: LegacyRuntimeEmancipationGrillParticleDirection::Forward,
+                draw_x_px: 40.0,
+                draw_y_px: 94.0,
+                image_path: "graphics/SMB/emanceparticle.png",
+                origin_x_px: 0.0,
+                origin_y_px: 0.0,
+                rotation: std::f32::consts::FRAC_PI_2,
+                scale: 2.0,
+                live_rendering_executed: false,
+            }],
+            side_draws: vec![LegacyRuntimeEmancipationGrillSideRenderPreview {
+                side_index: 0,
+                draw_x_px: 0.0,
+                draw_y_px: 88.0,
+                image_path: "graphics/SMB/emanceside.png",
+                rotation: 0.0,
+                scale: 2.0,
+                live_rendering_executed: false,
+            }],
+            scissor_cleared_after_particles: true,
+            color_reset_after_line: true,
+            live_rendering_executed: false,
+            live_grill_physics_migrated: false,
+        };
+
+        assert_eq!(
+            emancipation_grill_scissor_label(preview.scissor),
+            "x=0.000000;y=92.000000;w=32.000000;h=8.000000",
+        );
+        assert_eq!(
+            emancipation_grill_line_label(preview.line_rect),
+            "x=0.000000;y=92.000000;w=160.000000;h=8.000000;color=0.400000/0.400000/1.000000/0.040000",
+        );
+        assert_eq!(
+            emancipation_grill_first_particle_label(&preview),
+            "index=0;progress=0.250000;direction=forward;draw=(40.000000,94.000000);image=graphics/SMB/emanceparticle.png;origin=(0.000000,0.000000);rotation=1.570796;scale=2.000000;live_rendering_executed=false",
+        );
+        assert_eq!(
+            emancipation_grill_first_side_label(&preview),
+            "index=0;draw=(0.000000,88.000000);image=graphics/SMB/emanceside.png;rotation=0.000000;scale=2.000000;live_rendering_executed=false",
+        );
+        assert!(emancipation_grill_render_preview_label(&preview).contains(
+            "scissor_cleared_after_particles=true;color_reset_after_line=true;live_rendering_executed=false;live_grill_physics_migrated=false",
+        ));
+    }
+
+    #[test]
+    fn cli_labels_door_render_preview_metadata() {
+        let preview = LegacyRuntimeDoorRenderIntentPreview {
+            door_index: 0,
+            snapshot: LegacyRuntimeDoorSnapshot::from_legacy_horizontal_coord(4.0, 5.0, 0.25),
+            ymod_tiles: 0.0,
+            center_rotation_delta: std::f32::consts::PI * 0.25,
+            part_draws: [
+                LegacyRuntimeDoorRenderPartPreview {
+                    part_index: 0,
+                    kind: LegacyRuntimeDoorPartKind::Piece,
+                    draw_x_px: 92.0,
+                    draw_y_px: 128.0,
+                    image_path: "graphics/SMB/doorpiece.png",
+                    rotation: std::f32::consts::FRAC_PI_2,
+                    origin_x_px: 4.0,
+                    origin_y_px: 0.0,
+                    scale: 2.0,
+                    live_rendering_executed: false,
+                },
+                LegacyRuntimeDoorRenderPartPreview {
+                    part_index: 1,
+                    kind: LegacyRuntimeDoorPartKind::Piece,
+                    draw_x_px: 100.0,
+                    draw_y_px: 128.0,
+                    image_path: "graphics/SMB/doorpiece.png",
+                    rotation: std::f32::consts::PI * 1.5,
+                    origin_x_px: 4.0,
+                    origin_y_px: 0.0,
+                    scale: 2.0,
+                    live_rendering_executed: false,
+                },
+                LegacyRuntimeDoorRenderPartPreview {
+                    part_index: 2,
+                    kind: LegacyRuntimeDoorPartKind::Center,
+                    draw_x_px: 96.0,
+                    draw_y_px: 128.0,
+                    image_path: "graphics/SMB/doorcenter.png",
+                    rotation: std::f32::consts::FRAC_PI_2 - std::f32::consts::PI * 0.25,
+                    origin_x_px: 4.0,
+                    origin_y_px: 2.0,
+                    scale: 2.0,
+                    live_rendering_executed: false,
+                },
+                LegacyRuntimeDoorRenderPartPreview {
+                    part_index: 3,
+                    kind: LegacyRuntimeDoorPartKind::Center,
+                    draw_x_px: 96.0,
+                    draw_y_px: 128.0,
+                    image_path: "graphics/SMB/doorcenter.png",
+                    rotation: std::f32::consts::PI * 1.5 - std::f32::consts::PI * 0.25,
+                    origin_x_px: 4.0,
+                    origin_y_px: 2.0,
+                    scale: 2.0,
+                    live_rendering_executed: false,
+                },
+            ],
+            live_rendering_executed: false,
+            live_door_physics_migrated: false,
+            live_door_entity_mutated: false,
+        };
+
+        assert_eq!(
+            door_first_part_label(&preview),
+            "index=0;kind=piece;draw=(92.000000,128.000000);image=graphics/SMB/doorpiece.png;origin=(4.000000,0.000000);rotation=1.570796;scale=2.000000;live_rendering_executed=false",
+        );
+        assert!(door_render_preview_label(&preview).contains(
+            "direction=hor;open=false;active=true;timer=0.250000;ymod=0.000000;center_rotation_delta=0.785398",
+        ));
+        assert!(door_render_preview_label(&preview).contains(
+            "live_rendering_executed=false;live_door_physics_migrated=false;live_door_entity_mutated=false",
+        ));
+    }
+
+    #[test]
+    fn cli_labels_wall_indicator_render_preview_metadata() {
+        let preview = LegacyRuntimeWallIndicatorRenderIntentPreview {
+            indicator_index: 0,
+            snapshot: LegacyRuntimeWallIndicatorSnapshot::from_legacy_coord(4.0, 5.0, true),
+            quad_index: 2,
+            source_x_px: 16.0,
+            source_y_px: 0.0,
+            source_w_px: 16.0,
+            source_h_px: 16.0,
+            image_path: "graphics/SMB/wallindicator.png",
+            draw_x_px: 64.0,
+            draw_y_px: 112.0,
+            rotation: 0.0,
+            scale_x: 2.0,
+            scale_y: 2.0,
+            color: LegacyColor::rgb(1.0, 1.0, 1.0),
+            live_rendering_executed: false,
+            live_wall_indicator_physics_migrated: false,
+            live_wall_indicator_entity_mutated: false,
+        };
+
+        assert_eq!(
+            wall_indicator_render_preview_label(&preview),
+            "index=0;lighted=true;quad=2;source=(16.000000,0.000000,16.000000,16.000000);draw=(64.000000,112.000000);image=graphics/SMB/wallindicator.png;rotation=0.000000;scale=(2.000000,2.000000);color=1.000000/1.000000/1.000000/1.000000;live_rendering_executed=false;live_wall_indicator_physics_migrated=false;live_wall_indicator_entity_mutated=false",
         );
     }
 

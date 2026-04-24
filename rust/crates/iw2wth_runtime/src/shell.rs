@@ -68,6 +68,7 @@ use crate::{
 };
 
 const LEGACY_RUNTIME_VIEWPORT_WIDTH_TILES: f32 = 25.0;
+const LEGACY_RUNTIME_DEFAULT_PLAYER_POINTING_ANGLE: f32 = -consts::FRAC_PI_2;
 const LEGACY_RUNTIME_FIREBALL_IMAGE_PATH: &str = "graphics/SMB/fireball.png";
 const LEGACY_RUNTIME_SMALL_PLAYER_IMAGE_PATH: &str = "graphics/SMB/player/marioanimations.png";
 const LEGACY_RUNTIME_BIG_PLAYER_IMAGE_PATH: &str = "graphics/SMB/player/bigmarioanimations.png";
@@ -93,8 +94,31 @@ const LEGACY_RUNTIME_SMALL_TOWERING_1_HAT_IMAGE_PATH: &str = "graphics/SMB/hats/
 const LEGACY_RUNTIME_BIG_STANDARD_HAT_IMAGE_PATH: &str = "graphics/SMB/bighats/standard.png";
 const LEGACY_RUNTIME_BIG_TYROLEAN_HAT_IMAGE_PATH: &str = "graphics/SMB/bighats/tyrolean.png";
 const LEGACY_RUNTIME_BIG_TOWERING_1_HAT_IMAGE_PATH: &str = "graphics/SMB/bighats/towering1.png";
+const LEGACY_RUNTIME_PORTAL_CROSSHAIR_IMAGE_PATH: &str = "graphics/SMB/portalcrosshair.png";
+const LEGACY_RUNTIME_PORTAL_DOT_IMAGE_PATH: &str = "graphics/SMB/portaldot.png";
+const LEGACY_RUNTIME_PORTAL_PROJECTILE_IMAGE_PATH: &str = "graphics/SMB/portalprojectile.png";
+const LEGACY_RUNTIME_PORTAL_PROJECTILE_PARTICLE_IMAGE_PATH: &str =
+    "graphics/SMB/portalprojectileparticle.png";
+const LEGACY_RUNTIME_EMANCIPATION_GRILL_PARTICLE_IMAGE_PATH: &str =
+    "graphics/SMB/emanceparticle.png";
+const LEGACY_RUNTIME_EMANCIPATION_GRILL_SIDE_IMAGE_PATH: &str = "graphics/SMB/emanceside.png";
+const LEGACY_RUNTIME_EMANCIPATION_GRILL_IMAGE_WIDTH_PX: f32 = 64.0;
+const LEGACY_RUNTIME_EMANCIPATION_GRILL_LINE_COLOR: LegacyColor = LegacyColor {
+    r: 0.4,
+    g: 0.4,
+    b: 1.0,
+    a: 0.04,
+};
+const LEGACY_RUNTIME_DOOR_PIECE_IMAGE_PATH: &str = "graphics/SMB/doorpiece.png";
+const LEGACY_RUNTIME_DOOR_CENTER_IMAGE_PATH: &str = "graphics/SMB/doorcenter.png";
+const LEGACY_RUNTIME_WALL_INDICATOR_IMAGE_PATH: &str = "graphics/SMB/wallindicator.png";
+const LEGACY_RUNTIME_WALL_INDICATOR_QUAD_SIZE_PX: f32 = 16.0;
 const LEGACY_RUNTIME_FIRE_ANIMATION_TIME: f32 = 0.11;
 const LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS: usize = 4;
+const LEGACY_RUNTIME_PORTAL_DOT_TIME: f32 = 0.8;
+const LEGACY_RUNTIME_PORTAL_DOT_DISTANCE_TILES: f32 = 1.2;
+const LEGACY_RUNTIME_PORTAL_DOT_INNER_RADIUS_PX: f32 = 10.0;
+const LEGACY_RUNTIME_PORTAL_DOT_OUTER_RADIUS_PX: f32 = 70.0;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LegacyRuntimeLevelSelection {
@@ -137,6 +161,10 @@ pub struct LegacyRuntimeShell {
     pub sound_enabled: bool,
     pub block_bounce_queue: Vec<LegacyBlockBounceSchedule>,
     pub fireball_projectiles: Vec<LegacyFireballState>,
+    pub portal_projectiles: Vec<LegacyRuntimePortalProjectileSnapshot>,
+    pub emancipation_grills: Vec<LegacyRuntimeEmancipationGrillSnapshot>,
+    pub doors: Vec<LegacyRuntimeDoorSnapshot>,
+    pub wall_indicators: Vec<LegacyRuntimeWallIndicatorSnapshot>,
     pub coin_block_animations: Vec<LegacyCoinBlockAnimationState>,
     pub block_debris_animations: Vec<LegacyRuntimeBlockDebrisAnimationState>,
     pub scrolling_score_animations: Vec<LegacyRuntimeScrollingScoreAnimationState>,
@@ -209,6 +237,10 @@ impl LegacyRuntimeShell {
             sound_enabled: true,
             block_bounce_queue: Vec::new(),
             fireball_projectiles: Vec::new(),
+            portal_projectiles: Vec::new(),
+            emancipation_grills: Vec::new(),
+            doors: Vec::new(),
+            wall_indicators: Vec::new(),
             coin_block_animations: Vec::new(),
             block_debris_animations: Vec::new(),
             scrolling_score_animations: Vec::new(),
@@ -741,6 +773,13 @@ impl LegacyRuntimeShell {
                 self.projected_metadata_map_query(tiles),
             )
         });
+        let portal_aim_render_preview = request.portal_aim.and_then(|aim| {
+            legacy_runtime_portal_aim_render_intent_preview(
+                portal_target_probe,
+                aim,
+                request.render,
+            )
+        });
         let portal_outcome_intent =
             portal_target_probe.and_then(legacy_runtime_portal_outcome_intent);
         let portal_reservation_projections = portal_outcome_intent
@@ -799,14 +838,35 @@ impl LegacyRuntimeShell {
             &self.projected_fireball_projectile_collisions,
             request.render,
         );
-        let player_render_preview =
-            legacy_runtime_player_render_intent_preview(*player, request.render);
+        let portal_projectile_render_previews =
+            preview_legacy_runtime_portal_projectile_render_intents(
+                &self.portal_projectiles,
+                request.render,
+            );
+        let emancipation_grill_render_previews =
+            preview_legacy_runtime_emancipation_grill_render_intents(
+                &self.emancipation_grills,
+                request.render,
+            );
+        let door_render_previews =
+            preview_legacy_runtime_door_render_intents(&self.doors, request.render);
+        let wall_indicator_render_previews = preview_legacy_runtime_wall_indicator_render_intents(
+            &self.wall_indicators,
+            request.render,
+        );
+        let player_render_preview = legacy_runtime_player_render_intent_preview(
+            *player,
+            request.render,
+            request.player_pointing_angle,
+            portal_pair_readiness_summary,
+        );
 
         LegacyRuntimePlayerFrame {
             frame,
             player: *player,
             player_render_preview,
             portal_target_probe,
+            portal_aim_render_preview,
             portal_outcome_intent,
             portal_reservation_projections,
             portal_replacement_summaries,
@@ -830,6 +890,10 @@ impl LegacyRuntimeShell {
             fireball_collision_probes,
             projected_fireball_projectile_collision_snapshots,
             fireball_render_previews,
+            portal_projectile_render_previews,
+            emancipation_grill_render_previews,
+            door_render_previews,
+            wall_indicator_render_previews,
             fireball_enemy_hit_intents,
             projected_fireball_enemy_hit_snapshots,
             projected_fireball_enemy_hit_state: self.projected_fireball_enemy_hits.clone(),
@@ -1288,6 +1352,412 @@ pub struct LegacyRuntimeFireballRenderIntentPreviewReport {
     pub suppressed_projected_removal_indices: Vec<usize>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimePortalProjectileSnapshot {
+    pub x: f32,
+    pub y: f32,
+    pub timer: f32,
+    pub time: f32,
+    pub color: LegacyColor,
+    pub particles: Vec<LegacyRuntimePortalProjectileParticleSnapshot>,
+}
+
+impl LegacyRuntimePortalProjectileSnapshot {
+    #[must_use]
+    pub fn new(x: f32, y: f32, timer: f32, time: f32, color: LegacyColor) -> Self {
+        Self {
+            x,
+            y,
+            timer,
+            time,
+            color,
+            particles: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_particle(
+        mut self,
+        particle: LegacyRuntimePortalProjectileParticleSnapshot,
+    ) -> Self {
+        self.particles.push(particle);
+        self
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePortalProjectileParticleSnapshot {
+    pub x: f32,
+    pub y: f32,
+    pub color: LegacyColor,
+}
+
+impl LegacyRuntimePortalProjectileParticleSnapshot {
+    #[must_use]
+    pub const fn new(x: f32, y: f32, color: LegacyColor) -> Self {
+        Self { x, y, color }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePortalProjectileHeadRenderPreview {
+    pub x: f32,
+    pub y: f32,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub color: LegacyColor,
+    pub image_path: &'static str,
+    pub origin_x_px: f32,
+    pub origin_y_px: f32,
+    pub rotation: f32,
+    pub scale: f32,
+    pub live_rendering_executed: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePortalProjectileParticleRenderPreview {
+    pub particle_index: usize,
+    pub x: f32,
+    pub y: f32,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub color: LegacyColor,
+    pub image_path: &'static str,
+    pub origin_x_px: f32,
+    pub origin_y_px: f32,
+    pub rotation: f32,
+    pub scale: f32,
+    pub live_rendering_executed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimePortalProjectileRenderIntentPreview {
+    pub projectile_index: usize,
+    pub snapshot: LegacyRuntimePortalProjectileSnapshot,
+    pub particle_draws: Vec<LegacyRuntimePortalProjectileParticleRenderPreview>,
+    pub head_draw: Option<LegacyRuntimePortalProjectileHeadRenderPreview>,
+    pub particles_drawn_before_head: bool,
+    pub color_reset_after_draw: bool,
+    pub live_rendering_executed: bool,
+    pub live_projectile_physics_migrated: bool,
+    pub live_portal_mutated: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimePortalProjectileRenderIntentPreviewReport {
+    pub previews: Vec<LegacyRuntimePortalProjectileRenderIntentPreview>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LegacyRuntimeEmancipationGrillDirection {
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LegacyRuntimeEmancipationGrillParticleDirection {
+    Forward,
+    Backward,
+}
+
+impl LegacyRuntimeEmancipationGrillParticleDirection {
+    #[must_use]
+    pub const fn from_legacy_i32(direction: i32) -> Option<Self> {
+        match direction {
+            1 => Some(Self::Forward),
+            -1 => Some(Self::Backward),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillSnapshot {
+    pub x: f32,
+    pub y: f32,
+    pub direction: LegacyRuntimeEmancipationGrillDirection,
+    pub destroyed: bool,
+    pub start: f32,
+    pub end: f32,
+    pub range_px: f32,
+    pub particles: Vec<LegacyRuntimeEmancipationGrillParticleSnapshot>,
+}
+
+impl LegacyRuntimeEmancipationGrillSnapshot {
+    #[must_use]
+    pub fn horizontal(x: f32, y: f32, start_x: f32, end_x: f32, range_px: f32) -> Self {
+        Self {
+            x,
+            y,
+            direction: LegacyRuntimeEmancipationGrillDirection::Horizontal,
+            destroyed: false,
+            start: start_x,
+            end: end_x,
+            range_px,
+            particles: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn vertical(x: f32, y: f32, start_y: f32, end_y: f32, range_px: f32) -> Self {
+        Self {
+            x,
+            y,
+            direction: LegacyRuntimeEmancipationGrillDirection::Vertical,
+            destroyed: false,
+            start: start_y,
+            end: end_y,
+            range_px,
+            particles: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub const fn destroyed(mut self, destroyed: bool) -> Self {
+        self.destroyed = destroyed;
+        self
+    }
+
+    #[must_use]
+    pub fn with_particle(
+        mut self,
+        particle: LegacyRuntimeEmancipationGrillParticleSnapshot,
+    ) -> Self {
+        self.particles.push(particle);
+        self
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillParticleSnapshot {
+    pub progress: f32,
+    pub direction: LegacyRuntimeEmancipationGrillParticleDirection,
+    pub modifier_px: f32,
+}
+
+impl LegacyRuntimeEmancipationGrillParticleSnapshot {
+    #[must_use]
+    pub const fn new(
+        progress: f32,
+        direction: LegacyRuntimeEmancipationGrillParticleDirection,
+        modifier_px: f32,
+    ) -> Self {
+        Self {
+            progress,
+            direction,
+            modifier_px,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillScissorPreview {
+    pub x_px: f32,
+    pub y_px: f32,
+    pub width_px: f32,
+    pub height_px: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillLinePreview {
+    pub x_px: f32,
+    pub y_px: f32,
+    pub width_px: f32,
+    pub height_px: f32,
+    pub color: LegacyColor,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillParticleRenderPreview {
+    pub particle_index: usize,
+    pub progress: f32,
+    pub direction: LegacyRuntimeEmancipationGrillParticleDirection,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub image_path: &'static str,
+    pub origin_x_px: f32,
+    pub origin_y_px: f32,
+    pub rotation: f32,
+    pub scale: f32,
+    pub live_rendering_executed: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillSideRenderPreview {
+    pub side_index: usize,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub image_path: &'static str,
+    pub rotation: f32,
+    pub scale: f32,
+    pub live_rendering_executed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillRenderIntentPreview {
+    pub grill_index: usize,
+    pub snapshot: LegacyRuntimeEmancipationGrillSnapshot,
+    pub scissor: Option<LegacyRuntimeEmancipationGrillScissorPreview>,
+    pub line_rect: Option<LegacyRuntimeEmancipationGrillLinePreview>,
+    pub particle_draws: Vec<LegacyRuntimeEmancipationGrillParticleRenderPreview>,
+    pub side_draws: Vec<LegacyRuntimeEmancipationGrillSideRenderPreview>,
+    pub scissor_cleared_after_particles: bool,
+    pub color_reset_after_line: bool,
+    pub live_rendering_executed: bool,
+    pub live_grill_physics_migrated: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimeEmancipationGrillRenderIntentPreviewReport {
+    pub previews: Vec<LegacyRuntimeEmancipationGrillRenderIntentPreview>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LegacyRuntimeDoorDirection {
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LegacyRuntimeDoorPartKind {
+    Piece,
+    Center,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeDoorSnapshot {
+    pub x: f32,
+    pub y: f32,
+    pub direction: LegacyRuntimeDoorDirection,
+    pub open: bool,
+    pub timer: f32,
+    pub active: bool,
+}
+
+impl LegacyRuntimeDoorSnapshot {
+    #[must_use]
+    pub const fn horizontal(x: f32, y: f32, timer: f32) -> Self {
+        Self {
+            x,
+            y,
+            direction: LegacyRuntimeDoorDirection::Horizontal,
+            open: false,
+            timer,
+            active: true,
+        }
+    }
+
+    #[must_use]
+    pub const fn vertical(x: f32, y: f32, timer: f32) -> Self {
+        Self {
+            x,
+            y,
+            direction: LegacyRuntimeDoorDirection::Vertical,
+            open: false,
+            timer,
+            active: true,
+        }
+    }
+
+    #[must_use]
+    pub const fn from_legacy_horizontal_coord(cox: f32, coy: f32, timer: f32) -> Self {
+        Self::horizontal(cox - 1.0, coy - 12.0 / 16.0, timer)
+    }
+
+    #[must_use]
+    pub const fn from_legacy_vertical_coord(cox: f32, coy: f32, timer: f32) -> Self {
+        Self::vertical(cox - 12.0 / 16.0, coy - 2.0, timer)
+    }
+
+    #[must_use]
+    pub const fn with_open(mut self, open: bool) -> Self {
+        self.open = open;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_active(mut self, active: bool) -> Self {
+        self.active = active;
+        self
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeDoorRenderPartPreview {
+    pub part_index: usize,
+    pub kind: LegacyRuntimeDoorPartKind,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub image_path: &'static str,
+    pub rotation: f32,
+    pub origin_x_px: f32,
+    pub origin_y_px: f32,
+    pub scale: f32,
+    pub live_rendering_executed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimeDoorRenderIntentPreview {
+    pub door_index: usize,
+    pub snapshot: LegacyRuntimeDoorSnapshot,
+    pub ymod_tiles: f32,
+    pub center_rotation_delta: f32,
+    pub part_draws: [LegacyRuntimeDoorRenderPartPreview; 4],
+    pub live_rendering_executed: bool,
+    pub live_door_physics_migrated: bool,
+    pub live_door_entity_mutated: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimeDoorRenderIntentPreviewReport {
+    pub previews: Vec<LegacyRuntimeDoorRenderIntentPreview>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeWallIndicatorSnapshot {
+    pub x: f32,
+    pub y: f32,
+    pub lighted: bool,
+}
+
+impl LegacyRuntimeWallIndicatorSnapshot {
+    #[must_use]
+    pub const fn new(x: f32, y: f32, lighted: bool) -> Self {
+        Self { x, y, lighted }
+    }
+
+    #[must_use]
+    pub const fn from_legacy_coord(x: f32, y: f32, lighted: bool) -> Self {
+        Self::new(x, y, lighted)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimeWallIndicatorRenderIntentPreview {
+    pub indicator_index: usize,
+    pub snapshot: LegacyRuntimeWallIndicatorSnapshot,
+    pub quad_index: usize,
+    pub source_x_px: f32,
+    pub source_y_px: f32,
+    pub source_w_px: f32,
+    pub source_h_px: f32,
+    pub image_path: &'static str,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub rotation: f32,
+    pub scale_x: f32,
+    pub scale_y: f32,
+    pub color: LegacyColor,
+    pub live_rendering_executed: bool,
+    pub live_wall_indicator_physics_migrated: bool,
+    pub live_wall_indicator_entity_mutated: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LegacyRuntimeWallIndicatorRenderIntentPreviewReport {
+    pub previews: Vec<LegacyRuntimeWallIndicatorRenderIntentPreview>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LegacyRuntimePlayerRenderFrame {
     SmallRun,
@@ -1331,6 +1801,21 @@ pub enum LegacyRuntimePlayerRenderTintSource {
     White,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LegacyRuntimePlayerRenderDirectionScaleSource {
+    PlayerPointingAngle,
+    PortalCloneAnimationDirection,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePlayerRenderDirectionScale {
+    pub source: LegacyRuntimePlayerRenderDirectionScaleSource,
+    pub pointing_angle: f32,
+    pub animation_facing: HorizontalDirection,
+    pub direction_scale: f32,
+    pub vertical_scale: f32,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LegacyRuntimePlayerRenderColorLayerPreview {
     pub draw_order: u8,
@@ -1343,7 +1828,39 @@ pub struct LegacyRuntimePlayerRenderColorLayerPreview {
     pub draw_y_px: f32,
     pub rotation: f32,
     pub scale: f32,
+    pub direction_scale: LegacyRuntimePlayerRenderDirectionScale,
     pub live_rendering_executed: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePlayerRenderScissorPreview {
+    pub x_px: f32,
+    pub y_px: f32,
+    pub width_px: f32,
+    pub height_px: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePlayerRenderPortalClonePreview {
+    pub entry_slot: LegacyRuntimePortalSlot,
+    pub exit_slot: LegacyRuntimePortalSlot,
+    pub entry_facing: Facing,
+    pub exit_facing: Facing,
+    pub entry_scissor: LegacyRuntimePlayerRenderScissorPreview,
+    pub exit_scissor: LegacyRuntimePlayerRenderScissorPreview,
+    pub input_body: PlayerBodyBounds,
+    pub output_body: PlayerBodyBounds,
+    pub input_rotation: f32,
+    pub output_rotation: f32,
+    pub input_animation_direction: HorizontalDirection,
+    pub output_animation_direction: HorizontalDirection,
+    pub animation_direction_flipped: bool,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub direction_scale: LegacyRuntimePlayerRenderDirectionScale,
+    pub scissor_reset_to_current: bool,
+    pub live_rendering_executed: bool,
+    pub live_player_mutated: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1375,8 +1892,7 @@ pub struct LegacyRuntimePlayerRenderHatPreview {
     pub origin_x_px: i32,
     pub origin_y_px: i32,
     pub rotation: f32,
-    pub direction_scale: f32,
-    pub vertical_scale: f32,
+    pub direction_scale: LegacyRuntimePlayerRenderDirectionScale,
     pub live_rendering_executed: bool,
 }
 
@@ -1404,6 +1920,8 @@ pub struct LegacyRuntimePlayerRenderIntentPreview {
     pub draw_y_px: f32,
     pub rotation: f32,
     pub scale: f32,
+    pub direction_scale: LegacyRuntimePlayerRenderDirectionScale,
+    pub portal_clone: Option<LegacyRuntimePlayerRenderPortalClonePreview>,
     pub live_rendering_executed: bool,
     pub live_player_mutated: bool,
 }
@@ -1603,6 +2121,7 @@ pub struct LegacyRuntimePortalAimSnapshot {
     pub controls_enabled: bool,
     pub portal_player_type: bool,
     pub on_vine: bool,
+    pub portal_dots_timer: f32,
 }
 
 impl LegacyRuntimePortalAimSnapshot {
@@ -1615,6 +2134,7 @@ impl LegacyRuntimePortalAimSnapshot {
             controls_enabled: true,
             portal_player_type: true,
             on_vine: false,
+            portal_dots_timer: 0.0,
         }
     }
 
@@ -1627,6 +2147,12 @@ impl LegacyRuntimePortalAimSnapshot {
     #[must_use]
     pub const fn with_portal_2_down(mut self, portal_2_down: bool) -> Self {
         self.portal_2_down = portal_2_down;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_portal_dots_timer(mut self, portal_dots_timer: f32) -> Self {
+        self.portal_dots_timer = portal_dots_timer;
         self
     }
 
@@ -1684,6 +2210,63 @@ impl LegacyRuntimePortalTargetProbe {
     pub const fn portal_possible(self) -> bool {
         self.placement.is_some()
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePortalAimDotPreview {
+    pub sequence_index: u32,
+    pub phase: f32,
+    pub x_px: f32,
+    pub y_px: f32,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub radius_px: f32,
+    pub alpha: f32,
+    pub color: LegacyColor,
+    pub image_path: &'static str,
+    pub scale: f32,
+    pub live_rendering_executed: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePortalAimCrosshairPreview {
+    pub x_px: f32,
+    pub y_px: f32,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub rotation: f32,
+    pub origin_x_px: i32,
+    pub origin_y_px: i32,
+    pub color: LegacyColor,
+    pub image_path: &'static str,
+    pub scale: f32,
+    pub live_rendering_executed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyRuntimePortalAimRenderIntentPreview {
+    pub player_source: LegacyRuntimePortalTargetPlayerSource,
+    pub source_x: f32,
+    pub source_y: f32,
+    pub pointing_angle: f32,
+    pub requested_slot: Option<LegacyRuntimePortalSlot>,
+    pub trace_hit: Option<LegacyRuntimePortalTraceHit>,
+    pub placement: Option<LegacyRuntimePortalPlacement>,
+    pub portal_possible: bool,
+    pub target_x: f32,
+    pub target_y: f32,
+    pub distance_tiles: f32,
+    pub dots_timer: f32,
+    pub dots_time: f32,
+    pub dots_distance_tiles: f32,
+    pub dots_inner_radius_px: f32,
+    pub dots_outer_radius_px: f32,
+    pub dot_draws: Vec<LegacyRuntimePortalAimDotPreview>,
+    pub crosshair: Option<LegacyRuntimePortalAimCrosshairPreview>,
+    pub color_reset_after_dots: bool,
+    pub color_reset_after_crosshair: bool,
+    pub live_rendering_executed: bool,
+    pub live_portal_mutated: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2432,6 +3015,7 @@ pub struct LegacyRuntimePlayerFrame {
     pub player: LegacyRuntimePlayer,
     pub player_render_preview: LegacyRuntimePlayerRenderIntentPreview,
     pub portal_target_probe: Option<LegacyRuntimePortalTargetProbe>,
+    pub portal_aim_render_preview: Option<LegacyRuntimePortalAimRenderIntentPreview>,
     pub portal_outcome_intent: Option<LegacyRuntimePortalOutcomeIntent>,
     pub portal_reservation_projections: Vec<LegacyRuntimePortalReservationProjection>,
     pub portal_replacement_summaries: Vec<LegacyRuntimePortalReplacementSummary>,
@@ -2455,6 +3039,10 @@ pub struct LegacyRuntimePlayerFrame {
     pub projected_fireball_projectile_collision_snapshots:
         Vec<LegacyRuntimeProjectedFireballProjectileCollisionSnapshot>,
     pub fireball_render_previews: LegacyRuntimeFireballRenderIntentPreviewReport,
+    pub portal_projectile_render_previews: LegacyRuntimePortalProjectileRenderIntentPreviewReport,
+    pub emancipation_grill_render_previews: LegacyRuntimeEmancipationGrillRenderIntentPreviewReport,
+    pub door_render_previews: LegacyRuntimeDoorRenderIntentPreviewReport,
+    pub wall_indicator_render_previews: LegacyRuntimeWallIndicatorRenderIntentPreviewReport,
     pub fireball_enemy_hit_intents: Vec<LegacyRuntimeFireballEnemyHitIntent>,
     pub projected_fireball_enemy_hit_snapshots: Vec<LegacyRuntimeProjectedFireballEnemyHitSnapshot>,
     pub projected_fireball_enemy_hit_state: LegacyRuntimeProjectedFireballEnemyHitState,
@@ -3615,9 +4203,605 @@ fn legacy_runtime_fireball_render_intent_preview(
     }
 }
 
+fn preview_legacy_runtime_portal_projectile_render_intents(
+    projectiles: &[LegacyRuntimePortalProjectileSnapshot],
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimePortalProjectileRenderIntentPreviewReport {
+    LegacyRuntimePortalProjectileRenderIntentPreviewReport {
+        previews: projectiles
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, projectile)| {
+                legacy_runtime_portal_projectile_render_intent_preview(index, projectile, render)
+            })
+            .collect(),
+    }
+}
+
+fn legacy_runtime_portal_projectile_render_intent_preview(
+    projectile_index: usize,
+    snapshot: LegacyRuntimePortalProjectileSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimePortalProjectileRenderIntentPreview {
+    let particle_draws = snapshot
+        .particles
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(particle_index, particle)| {
+            legacy_runtime_portal_projectile_particle_render_preview(
+                particle_index,
+                particle,
+                render,
+            )
+        })
+        .collect::<Vec<_>>();
+    let head_draw = (snapshot.timer < snapshot.time)
+        .then(|| legacy_runtime_portal_projectile_head_render_preview(&snapshot, render));
+
+    LegacyRuntimePortalProjectileRenderIntentPreview {
+        projectile_index,
+        snapshot,
+        particle_draws,
+        head_draw,
+        particles_drawn_before_head: true,
+        color_reset_after_draw: false,
+        live_rendering_executed: false,
+        live_projectile_physics_migrated: false,
+        live_portal_mutated: false,
+    }
+}
+
+fn legacy_runtime_portal_projectile_head_render_preview(
+    snapshot: &LegacyRuntimePortalProjectileSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimePortalProjectileHeadRenderPreview {
+    LegacyRuntimePortalProjectileHeadRenderPreview {
+        x: snapshot.x,
+        y: snapshot.y,
+        draw_x_px: ((snapshot.x - render.xscroll) * 16.0 * render.scale).floor(),
+        draw_y_px: ((snapshot.y - 0.5) * 16.0 * render.scale).floor(),
+        color: snapshot.color,
+        image_path: LEGACY_RUNTIME_PORTAL_PROJECTILE_IMAGE_PATH,
+        origin_x_px: 3.0,
+        origin_y_px: 3.0,
+        rotation: 0.0,
+        scale: render.scale,
+        live_rendering_executed: false,
+    }
+}
+
+fn legacy_runtime_portal_projectile_particle_render_preview(
+    particle_index: usize,
+    particle: LegacyRuntimePortalProjectileParticleSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimePortalProjectileParticleRenderPreview {
+    LegacyRuntimePortalProjectileParticleRenderPreview {
+        particle_index,
+        x: particle.x,
+        y: particle.y,
+        draw_x_px: ((particle.x - render.xscroll) * 16.0 * render.scale).floor(),
+        draw_y_px: ((particle.y - 0.5) * 16.0 * render.scale).floor(),
+        color: particle.color,
+        image_path: LEGACY_RUNTIME_PORTAL_PROJECTILE_PARTICLE_IMAGE_PATH,
+        origin_x_px: 0.5,
+        origin_y_px: 0.5,
+        rotation: 0.0,
+        scale: render.scale,
+        live_rendering_executed: false,
+    }
+}
+
+fn preview_legacy_runtime_emancipation_grill_render_intents(
+    grills: &[LegacyRuntimeEmancipationGrillSnapshot],
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeEmancipationGrillRenderIntentPreviewReport {
+    LegacyRuntimeEmancipationGrillRenderIntentPreviewReport {
+        previews: grills
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, grill)| {
+                legacy_runtime_emancipation_grill_render_intent_preview(index, grill, render)
+            })
+            .collect(),
+    }
+}
+
+fn legacy_runtime_emancipation_grill_render_intent_preview(
+    grill_index: usize,
+    snapshot: LegacyRuntimeEmancipationGrillSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeEmancipationGrillRenderIntentPreview {
+    if snapshot.destroyed {
+        return LegacyRuntimeEmancipationGrillRenderIntentPreview {
+            grill_index,
+            snapshot,
+            scissor: None,
+            line_rect: None,
+            particle_draws: Vec::new(),
+            side_draws: Vec::new(),
+            scissor_cleared_after_particles: false,
+            color_reset_after_line: false,
+            live_rendering_executed: false,
+            live_grill_physics_migrated: false,
+        };
+    }
+
+    let scissor = legacy_runtime_emancipation_grill_scissor_preview(&snapshot, render);
+    let line_rect = legacy_runtime_emancipation_grill_line_preview(&snapshot, render);
+    let particle_draws = snapshot
+        .particles
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(particle_index, particle)| {
+            legacy_runtime_emancipation_grill_particle_render_preview(
+                &snapshot,
+                particle_index,
+                particle,
+                render,
+            )
+        })
+        .collect();
+    let side_draws = legacy_runtime_emancipation_grill_side_render_previews(&snapshot, render);
+
+    LegacyRuntimeEmancipationGrillRenderIntentPreview {
+        grill_index,
+        snapshot,
+        scissor: Some(scissor),
+        line_rect: Some(line_rect),
+        particle_draws,
+        side_draws,
+        scissor_cleared_after_particles: true,
+        color_reset_after_line: true,
+        live_rendering_executed: false,
+        live_grill_physics_migrated: false,
+    }
+}
+
+fn legacy_runtime_emancipation_grill_scissor_preview(
+    snapshot: &LegacyRuntimeEmancipationGrillSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeEmancipationGrillScissorPreview {
+    match snapshot.direction {
+        LegacyRuntimeEmancipationGrillDirection::Horizontal => {
+            LegacyRuntimeEmancipationGrillScissorPreview {
+                x_px: legacy_runtime_emancipation_grill_horizontal_start_px(snapshot, render),
+                y_px: ((snapshot.y - 1.0) * 16.0 - 2.0) * render.scale,
+                width_px: snapshot.range_px
+                    - LEGACY_RUNTIME_EMANCIPATION_GRILL_IMAGE_WIDTH_PX * render.scale,
+                height_px: render.scale * 4.0,
+            }
+        }
+        LegacyRuntimeEmancipationGrillDirection::Vertical => {
+            LegacyRuntimeEmancipationGrillScissorPreview {
+                x_px: (((snapshot.x - 1.0 - render.xscroll) * 16.0 + 6.0) * render.scale).floor(),
+                y_px: legacy_runtime_emancipation_grill_vertical_start_px(snapshot, render)
+                    - 8.0 * render.scale,
+                width_px: render.scale * 4.0,
+                height_px: snapshot.range_px
+                    - LEGACY_RUNTIME_EMANCIPATION_GRILL_IMAGE_WIDTH_PX * render.scale,
+            }
+        }
+    }
+}
+
+fn legacy_runtime_emancipation_grill_line_preview(
+    snapshot: &LegacyRuntimeEmancipationGrillSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeEmancipationGrillLinePreview {
+    let scissor = legacy_runtime_emancipation_grill_scissor_preview(snapshot, render);
+    LegacyRuntimeEmancipationGrillLinePreview {
+        x_px: scissor.x_px,
+        y_px: scissor.y_px,
+        width_px: match snapshot.direction {
+            LegacyRuntimeEmancipationGrillDirection::Horizontal => snapshot.range_px,
+            LegacyRuntimeEmancipationGrillDirection::Vertical => render.scale * 4.0,
+        },
+        height_px: match snapshot.direction {
+            LegacyRuntimeEmancipationGrillDirection::Horizontal => render.scale * 4.0,
+            LegacyRuntimeEmancipationGrillDirection::Vertical => {
+                snapshot.range_px - LEGACY_RUNTIME_EMANCIPATION_GRILL_IMAGE_WIDTH_PX * render.scale
+            }
+        },
+        color: LEGACY_RUNTIME_EMANCIPATION_GRILL_LINE_COLOR,
+    }
+}
+
+fn legacy_runtime_emancipation_grill_particle_render_preview(
+    snapshot: &LegacyRuntimeEmancipationGrillSnapshot,
+    particle_index: usize,
+    particle: LegacyRuntimeEmancipationGrillParticleSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeEmancipationGrillParticleRenderPreview {
+    let (draw_x_px, draw_y_px, rotation, origin_x_px) = match snapshot.direction {
+        LegacyRuntimeEmancipationGrillDirection::Horizontal => {
+            let start_left =
+                legacy_runtime_emancipation_grill_horizontal_start_px(snapshot, render);
+            let start_right = legacy_runtime_emancipation_grill_horizontal_end_px(snapshot, render);
+            let y_px = ((snapshot.y - 1.0) * 16.0 - particle.modifier_px) * render.scale;
+            match particle.direction {
+                LegacyRuntimeEmancipationGrillParticleDirection::Forward => (
+                    (start_left + snapshot.range_px * particle.progress).floor(),
+                    y_px,
+                    consts::FRAC_PI_2,
+                    0.0,
+                ),
+                LegacyRuntimeEmancipationGrillParticleDirection::Backward => (
+                    (start_right - snapshot.range_px * particle.progress).floor(),
+                    y_px,
+                    -consts::FRAC_PI_2,
+                    1.0,
+                ),
+            }
+        }
+        LegacyRuntimeEmancipationGrillDirection::Vertical => {
+            let start_up = legacy_runtime_emancipation_grill_vertical_start_px(snapshot, render);
+            let start_down = legacy_runtime_emancipation_grill_vertical_end_px(snapshot, render);
+            let x_px = ((snapshot.x - 1.0 - render.xscroll) * 16.0 - particle.modifier_px + 9.0)
+                * render.scale;
+            match particle.direction {
+                LegacyRuntimeEmancipationGrillParticleDirection::Forward => (
+                    x_px.floor(),
+                    start_up + snapshot.range_px * particle.progress,
+                    consts::PI,
+                    0.0,
+                ),
+                LegacyRuntimeEmancipationGrillParticleDirection::Backward => (
+                    x_px.floor(),
+                    start_down - snapshot.range_px * particle.progress,
+                    0.0,
+                    1.0,
+                ),
+            }
+        }
+    };
+
+    LegacyRuntimeEmancipationGrillParticleRenderPreview {
+        particle_index,
+        progress: particle.progress,
+        direction: particle.direction,
+        draw_x_px,
+        draw_y_px,
+        image_path: LEGACY_RUNTIME_EMANCIPATION_GRILL_PARTICLE_IMAGE_PATH,
+        origin_x_px,
+        origin_y_px: 0.0,
+        rotation,
+        scale: render.scale,
+        live_rendering_executed: false,
+    }
+}
+
+fn legacy_runtime_emancipation_grill_side_render_previews(
+    snapshot: &LegacyRuntimeEmancipationGrillSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> Vec<LegacyRuntimeEmancipationGrillSideRenderPreview> {
+    match snapshot.direction {
+        LegacyRuntimeEmancipationGrillDirection::Horizontal => {
+            let start_left =
+                legacy_runtime_emancipation_grill_horizontal_start_px(snapshot, render);
+            let start_right = legacy_runtime_emancipation_grill_horizontal_end_px(snapshot, render);
+            vec![
+                LegacyRuntimeEmancipationGrillSideRenderPreview {
+                    side_index: 0,
+                    draw_x_px: start_left,
+                    draw_y_px: ((snapshot.y - 1.0) * 16.0 - 4.0) * render.scale,
+                    image_path: LEGACY_RUNTIME_EMANCIPATION_GRILL_SIDE_IMAGE_PATH,
+                    rotation: 0.0,
+                    scale: render.scale,
+                    live_rendering_executed: false,
+                },
+                LegacyRuntimeEmancipationGrillSideRenderPreview {
+                    side_index: 1,
+                    draw_x_px: start_right + 16.0 * render.scale,
+                    draw_y_px: ((snapshot.y - 1.0) * 16.0 + 4.0) * render.scale,
+                    image_path: LEGACY_RUNTIME_EMANCIPATION_GRILL_SIDE_IMAGE_PATH,
+                    rotation: consts::PI,
+                    scale: render.scale,
+                    live_rendering_executed: false,
+                },
+            ]
+        }
+        LegacyRuntimeEmancipationGrillDirection::Vertical => {
+            let start_up = legacy_runtime_emancipation_grill_vertical_start_px(snapshot, render);
+            let start_down = legacy_runtime_emancipation_grill_vertical_end_px(snapshot, render);
+            vec![
+                LegacyRuntimeEmancipationGrillSideRenderPreview {
+                    side_index: 0,
+                    draw_x_px: (((snapshot.x - render.xscroll) * 16.0 - 4.0) * render.scale)
+                        .floor(),
+                    draw_y_px: start_up - 8.0 * render.scale,
+                    image_path: LEGACY_RUNTIME_EMANCIPATION_GRILL_SIDE_IMAGE_PATH,
+                    rotation: consts::FRAC_PI_2,
+                    scale: render.scale,
+                    live_rendering_executed: false,
+                },
+                LegacyRuntimeEmancipationGrillSideRenderPreview {
+                    side_index: 1,
+                    draw_x_px: (((snapshot.x - render.xscroll) * 16.0 - 12.0) * render.scale)
+                        .floor(),
+                    draw_y_px: start_down + 8.0 * render.scale,
+                    image_path: LEGACY_RUNTIME_EMANCIPATION_GRILL_SIDE_IMAGE_PATH,
+                    rotation: -consts::FRAC_PI_2,
+                    scale: render.scale,
+                    live_rendering_executed: false,
+                },
+            ]
+        }
+    }
+}
+
+fn legacy_runtime_emancipation_grill_horizontal_start_px(
+    snapshot: &LegacyRuntimeEmancipationGrillSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> f32 {
+    ((snapshot.start - 1.0 - render.xscroll) * 16.0 * render.scale).floor()
+}
+
+fn legacy_runtime_emancipation_grill_horizontal_end_px(
+    snapshot: &LegacyRuntimeEmancipationGrillSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> f32 {
+    ((snapshot.end - 1.0 - render.xscroll) * 16.0 * render.scale).floor()
+}
+
+fn legacy_runtime_emancipation_grill_vertical_start_px(
+    snapshot: &LegacyRuntimeEmancipationGrillSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> f32 {
+    ((snapshot.start - 1.0) * 16.0 * render.scale).floor()
+}
+
+fn legacy_runtime_emancipation_grill_vertical_end_px(
+    snapshot: &LegacyRuntimeEmancipationGrillSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> f32 {
+    ((snapshot.end - 1.0) * 16.0 * render.scale).floor()
+}
+
+fn preview_legacy_runtime_door_render_intents(
+    doors: &[LegacyRuntimeDoorSnapshot],
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeDoorRenderIntentPreviewReport {
+    LegacyRuntimeDoorRenderIntentPreviewReport {
+        previews: doors
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, door)| legacy_runtime_door_render_intent_preview(index, door, render))
+            .collect(),
+    }
+}
+
+fn legacy_runtime_door_render_intent_preview(
+    door_index: usize,
+    snapshot: LegacyRuntimeDoorSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeDoorRenderIntentPreview {
+    let (ymod_tiles, center_rotation_delta) = legacy_runtime_door_motion(snapshot.timer);
+    let part_draws = match snapshot.direction {
+        LegacyRuntimeDoorDirection::Horizontal => [
+            legacy_runtime_door_part_render_preview(
+                0,
+                LegacyRuntimeDoorPartKind::Piece,
+                LegacyRuntimeDoorPartRenderSpec {
+                    draw_x_px: ((snapshot.x + 14.0 / 16.0 - render.xscroll - ymod_tiles)
+                        * 16.0
+                        * render.scale)
+                        .floor(),
+                    draw_y_px: (snapshot.y - 4.0 / 16.0) * 16.0 * render.scale,
+                    rotation: consts::FRAC_PI_2,
+                    origin_x_px: 4.0,
+                    origin_y_px: 0.0,
+                    scale: render.scale,
+                },
+            ),
+            legacy_runtime_door_part_render_preview(
+                1,
+                LegacyRuntimeDoorPartKind::Piece,
+                LegacyRuntimeDoorPartRenderSpec {
+                    draw_x_px: ((snapshot.x + 18.0 / 16.0 - render.xscroll + ymod_tiles)
+                        * 16.0
+                        * render.scale)
+                        .floor(),
+                    draw_y_px: (snapshot.y - 4.0 / 16.0) * 16.0 * render.scale,
+                    rotation: consts::PI * 1.5,
+                    origin_x_px: 4.0,
+                    origin_y_px: 0.0,
+                    scale: render.scale,
+                },
+            ),
+            legacy_runtime_door_part_render_preview(
+                2,
+                LegacyRuntimeDoorPartKind::Center,
+                LegacyRuntimeDoorPartRenderSpec {
+                    draw_x_px: ((snapshot.x + 1.0 - render.xscroll - ymod_tiles)
+                        * 16.0
+                        * render.scale)
+                        .floor(),
+                    draw_y_px: (snapshot.y - 4.0 / 16.0) * 16.0 * render.scale,
+                    rotation: consts::FRAC_PI_2 - center_rotation_delta,
+                    origin_x_px: 4.0,
+                    origin_y_px: 2.0,
+                    scale: render.scale,
+                },
+            ),
+            legacy_runtime_door_part_render_preview(
+                3,
+                LegacyRuntimeDoorPartKind::Center,
+                LegacyRuntimeDoorPartRenderSpec {
+                    draw_x_px: ((snapshot.x + 1.0 - render.xscroll + ymod_tiles)
+                        * 16.0
+                        * render.scale)
+                        .floor(),
+                    draw_y_px: (snapshot.y - 4.0 / 16.0) * 16.0 * render.scale,
+                    rotation: consts::PI * 1.5 - center_rotation_delta,
+                    origin_x_px: 4.0,
+                    origin_y_px: 2.0,
+                    scale: render.scale,
+                },
+            ),
+        ],
+        LegacyRuntimeDoorDirection::Vertical => {
+            let x = ((snapshot.x + 0.25 - render.xscroll) * 16.0 * render.scale).floor();
+            [
+                legacy_runtime_door_part_render_preview(
+                    0,
+                    LegacyRuntimeDoorPartKind::Piece,
+                    LegacyRuntimeDoorPartRenderSpec {
+                        draw_x_px: x,
+                        draw_y_px: (snapshot.y + 6.0 / 16.0 - ymod_tiles) * 16.0 * render.scale,
+                        rotation: consts::PI,
+                        origin_x_px: 4.0,
+                        origin_y_px: 0.0,
+                        scale: render.scale,
+                    },
+                ),
+                legacy_runtime_door_part_render_preview(
+                    1,
+                    LegacyRuntimeDoorPartKind::Piece,
+                    LegacyRuntimeDoorPartRenderSpec {
+                        draw_x_px: x,
+                        draw_y_px: (snapshot.y + 10.0 / 16.0 + ymod_tiles) * 16.0 * render.scale,
+                        rotation: 0.0,
+                        origin_x_px: 4.0,
+                        origin_y_px: 0.0,
+                        scale: render.scale,
+                    },
+                ),
+                legacy_runtime_door_part_render_preview(
+                    2,
+                    LegacyRuntimeDoorPartKind::Center,
+                    LegacyRuntimeDoorPartRenderSpec {
+                        draw_x_px: x,
+                        draw_y_px: (snapshot.y + 8.0 / 16.0 - ymod_tiles) * 16.0 * render.scale,
+                        rotation: center_rotation_delta,
+                        origin_x_px: 4.0,
+                        origin_y_px: 2.0,
+                        scale: render.scale,
+                    },
+                ),
+                legacy_runtime_door_part_render_preview(
+                    3,
+                    LegacyRuntimeDoorPartKind::Center,
+                    LegacyRuntimeDoorPartRenderSpec {
+                        draw_x_px: x,
+                        draw_y_px: (snapshot.y + 8.0 / 16.0 + ymod_tiles) * 16.0 * render.scale,
+                        rotation: consts::PI + center_rotation_delta,
+                        origin_x_px: 4.0,
+                        origin_y_px: 2.0,
+                        scale: render.scale,
+                    },
+                ),
+            ]
+        }
+    };
+
+    LegacyRuntimeDoorRenderIntentPreview {
+        door_index,
+        snapshot,
+        ymod_tiles,
+        center_rotation_delta,
+        part_draws,
+        live_rendering_executed: false,
+        live_door_physics_migrated: false,
+        live_door_entity_mutated: false,
+    }
+}
+
+fn legacy_runtime_door_motion(timer: f32) -> (f32, f32) {
+    if timer > 0.5 {
+        ((timer - 0.5) * 2.0, consts::FRAC_PI_2)
+    } else {
+        (0.0, timer * consts::PI)
+    }
+}
+
+struct LegacyRuntimeDoorPartRenderSpec {
+    draw_x_px: f32,
+    draw_y_px: f32,
+    rotation: f32,
+    origin_x_px: f32,
+    origin_y_px: f32,
+    scale: f32,
+}
+
+fn legacy_runtime_door_part_render_preview(
+    part_index: usize,
+    kind: LegacyRuntimeDoorPartKind,
+    spec: LegacyRuntimeDoorPartRenderSpec,
+) -> LegacyRuntimeDoorRenderPartPreview {
+    LegacyRuntimeDoorRenderPartPreview {
+        part_index,
+        kind,
+        draw_x_px: spec.draw_x_px,
+        draw_y_px: spec.draw_y_px,
+        image_path: match kind {
+            LegacyRuntimeDoorPartKind::Piece => LEGACY_RUNTIME_DOOR_PIECE_IMAGE_PATH,
+            LegacyRuntimeDoorPartKind::Center => LEGACY_RUNTIME_DOOR_CENTER_IMAGE_PATH,
+        },
+        rotation: spec.rotation,
+        origin_x_px: spec.origin_x_px,
+        origin_y_px: spec.origin_y_px,
+        scale: spec.scale,
+        live_rendering_executed: false,
+    }
+}
+
+fn preview_legacy_runtime_wall_indicator_render_intents(
+    indicators: &[LegacyRuntimeWallIndicatorSnapshot],
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeWallIndicatorRenderIntentPreviewReport {
+    LegacyRuntimeWallIndicatorRenderIntentPreviewReport {
+        previews: indicators
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, indicator)| {
+                legacy_runtime_wall_indicator_render_intent_preview(index, indicator, render)
+            })
+            .collect(),
+    }
+}
+
+fn legacy_runtime_wall_indicator_render_intent_preview(
+    indicator_index: usize,
+    snapshot: LegacyRuntimeWallIndicatorSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimeWallIndicatorRenderIntentPreview {
+    let quad_index = if snapshot.lighted { 2 } else { 1 };
+    LegacyRuntimeWallIndicatorRenderIntentPreview {
+        indicator_index,
+        snapshot,
+        quad_index,
+        source_x_px: if snapshot.lighted {
+            LEGACY_RUNTIME_WALL_INDICATOR_QUAD_SIZE_PX
+        } else {
+            0.0
+        },
+        source_y_px: 0.0,
+        source_w_px: LEGACY_RUNTIME_WALL_INDICATOR_QUAD_SIZE_PX,
+        source_h_px: LEGACY_RUNTIME_WALL_INDICATOR_QUAD_SIZE_PX,
+        image_path: LEGACY_RUNTIME_WALL_INDICATOR_IMAGE_PATH,
+        draw_x_px: ((snapshot.x - 1.0 - render.xscroll) * 16.0 * render.scale).floor(),
+        draw_y_px: ((snapshot.y - 1.0) * 16.0 - 8.0) * render.scale,
+        rotation: 0.0,
+        scale_x: render.scale,
+        scale_y: render.scale,
+        color: LegacyColor::rgb(1.0, 1.0, 1.0),
+        live_rendering_executed: false,
+        live_wall_indicator_physics_migrated: false,
+        live_wall_indicator_entity_mutated: false,
+    }
+}
+
 fn legacy_runtime_player_render_intent_preview(
     player: LegacyRuntimePlayer,
     render: LegacyRuntimeRenderContext,
+    pointing_angle: f32,
+    portal_pair_readiness: Option<LegacyRuntimePortalPairReadinessSummary>,
 ) -> LegacyRuntimePlayerRenderIntentPreview {
     let size = player.power_up.legacy_size();
     let fire_animation_active =
@@ -3639,6 +4823,8 @@ fn legacy_runtime_player_render_intent_preview(
         .floor();
     let draw_y_px =
         ((player.body.y * 16.0 - legacy_runtime_player_offset_y(size)) * render.scale).floor();
+    let direction_scale =
+        legacy_runtime_player_render_direction_scale(player, render.scale, pointing_angle);
 
     LegacyRuntimePlayerRenderIntentPreview {
         player_index: 0,
@@ -3663,6 +4849,7 @@ fn legacy_runtime_player_render_intent_preview(
             draw_x_px,
             draw_y_px,
             render.scale,
+            direction_scale,
         ),
         hat_draw_count: legacy_runtime_player_render_hat_draw_count(
             player,
@@ -3675,14 +4862,154 @@ fn legacy_runtime_player_render_intent_preview(
             fire_animation_active,
             draw_x_px,
             draw_y_px,
-            render.scale,
+            direction_scale,
         ),
         draw_x_px,
         draw_y_px,
         rotation: 0.0,
         scale: render.scale,
+        direction_scale,
+        portal_clone: legacy_runtime_player_render_portal_clone_preview(
+            player,
+            render,
+            direction_scale,
+            portal_pair_readiness,
+        ),
         live_rendering_executed: false,
         live_player_mutated: false,
+    }
+}
+
+fn legacy_runtime_player_render_portal_clone_preview(
+    player: LegacyRuntimePlayer,
+    render: LegacyRuntimeRenderContext,
+    base_direction_scale: LegacyRuntimePlayerRenderDirectionScale,
+    readiness: Option<LegacyRuntimePortalPairReadinessSummary>,
+) -> Option<LegacyRuntimePlayerRenderPortalClonePreview> {
+    const INPUT_ROTATION: f32 = 0.0;
+    let candidate = legacy_runtime_portal_transit_candidate_probe(player, readiness)?;
+    let pairing = candidate.candidate_pairing?;
+    let transit = legacy_portal_coords(LegacyPortalTransitInput {
+        position: Vec2::new(player.body.x, player.body.y),
+        velocity: Vec2::new(0.0, 0.0),
+        size: Vec2::new(player.body.width, player.body.height),
+        rotation: INPUT_ROTATION,
+        animation_direction: Some(legacy_runtime_wormhole_animation_direction(
+            player.movement.animation_direction,
+        )),
+        entry: LegacyPortalEndpoint::new(
+            pairing.entry.placement.coord.x as f32,
+            pairing.entry.placement.coord.y as f32,
+            pairing.entry.placement.side,
+        ),
+        exit: LegacyPortalEndpoint::new(
+            pairing.exit.placement.coord.x as f32,
+            pairing.exit.placement.coord.y as f32,
+            pairing.exit.placement.side,
+        ),
+        live: false,
+        gravity: player.movement.gravity,
+        frame_dt: 0.0,
+    });
+    let output_animation_direction = legacy_runtime_player_animation_direction(
+        transit.animation_direction,
+        player.movement.animation_direction,
+    );
+    let animation_direction_flipped =
+        output_animation_direction != player.movement.animation_direction;
+    let output_body = PlayerBodyBounds::new(
+        transit.position.x,
+        transit.position.y,
+        player.body.width,
+        player.body.height,
+    );
+    let mut direction_scale = base_direction_scale;
+    direction_scale.source =
+        LegacyRuntimePlayerRenderDirectionScaleSource::PortalCloneAnimationDirection;
+    direction_scale.animation_facing = output_animation_direction;
+    if animation_direction_flipped {
+        direction_scale.direction_scale = -direction_scale.direction_scale;
+    }
+
+    Some(LegacyRuntimePlayerRenderPortalClonePreview {
+        entry_slot: pairing.entry_slot,
+        exit_slot: pairing.exit_slot,
+        entry_facing: pairing.entry.placement.side,
+        exit_facing: pairing.exit.placement.side,
+        entry_scissor: legacy_runtime_player_render_portal_scissor(pairing.entry.placement, render),
+        exit_scissor: legacy_runtime_player_render_portal_scissor(pairing.exit.placement, render),
+        input_body: player.body,
+        output_body,
+        input_rotation: INPUT_ROTATION,
+        output_rotation: transit.rotation,
+        input_animation_direction: player.movement.animation_direction,
+        output_animation_direction,
+        animation_direction_flipped,
+        draw_x_px: (((output_body.x - render.xscroll) * 16.0
+            + legacy_runtime_player_offset_x(player.power_up.legacy_size()))
+            * render.scale)
+            .ceil(),
+        draw_y_px: ((output_body.y * 16.0
+            - legacy_runtime_player_offset_y(player.power_up.legacy_size()))
+            * render.scale)
+            .ceil(),
+        direction_scale,
+        scissor_reset_to_current: true,
+        live_rendering_executed: false,
+        live_player_mutated: false,
+    })
+}
+
+fn legacy_runtime_player_render_portal_scissor(
+    placement: LegacyRuntimePortalPlacement,
+    render: LegacyRuntimeRenderContext,
+) -> LegacyRuntimePlayerRenderScissorPreview {
+    let (x_tiles, y_tiles, width_tiles, height_tiles) = match placement.side {
+        Facing::Right => (
+            placement.coord.x as f32,
+            placement.coord.y as f32 - 3.5,
+            4.0,
+            6.0,
+        ),
+        Facing::Left => (
+            placement.coord.x as f32 - 5.0,
+            placement.coord.y as f32 - 4.5,
+            4.0,
+            6.0,
+        ),
+        Facing::Up => (
+            placement.coord.x as f32 - 3.0,
+            placement.coord.y as f32 - 5.5,
+            6.0,
+            4.0,
+        ),
+        Facing::Down => (
+            placement.coord.x as f32 - 4.0,
+            placement.coord.y as f32 - 0.5,
+            6.0,
+            4.0,
+        ),
+    };
+
+    LegacyRuntimePlayerRenderScissorPreview {
+        x_px: ((x_tiles - render.xscroll) * 16.0 * render.scale).floor(),
+        y_px: (y_tiles * 16.0 * render.scale).floor(),
+        width_px: width_tiles * 16.0 * render.scale,
+        height_px: height_tiles * 16.0 * render.scale,
+    }
+}
+
+const fn legacy_runtime_player_render_direction_scale(
+    player: LegacyRuntimePlayer,
+    scale: f32,
+    pointing_angle: f32,
+) -> LegacyRuntimePlayerRenderDirectionScale {
+    LegacyRuntimePlayerRenderDirectionScale {
+        source: LegacyRuntimePlayerRenderDirectionScaleSource::PlayerPointingAngle,
+        pointing_angle,
+        animation_facing: player.movement.animation_direction,
+        direction_scale: if pointing_angle > 0.0 { -scale } else { scale },
+        vertical_scale: scale,
     }
 }
 
@@ -3819,12 +5146,14 @@ const fn legacy_runtime_player_render_color_layers(
     draw_x_px: f32,
     draw_y_px: f32,
     scale: f32,
+    direction_scale: LegacyRuntimePlayerRenderDirectionScale,
 ) -> [LegacyRuntimePlayerRenderColorLayerPreview; 4] {
     let geometry = LegacyRuntimePlayerRenderLayerGeometry {
         quad,
         draw_x_px,
         draw_y_px,
         scale,
+        direction_scale,
     };
     [
         legacy_runtime_player_render_color_layer(size, power_up, 1, 0, geometry),
@@ -3840,7 +5169,7 @@ fn legacy_runtime_player_render_hat_draws(
     fire_animation_active: bool,
     draw_x_px: f32,
     draw_y_px: f32,
-    scale: f32,
+    direction_scale: LegacyRuntimePlayerRenderDirectionScale,
 ) -> [LegacyRuntimePlayerRenderHatPreview; LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS] {
     let mut hat_draws =
         [legacy_runtime_player_render_empty_hat_preview(); LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS];
@@ -3908,11 +5237,7 @@ fn legacy_runtime_player_render_hat_draws(
                 + offset_y_px
                 + stack_y_px,
             rotation: 0.0,
-            direction_scale: match player.movement.animation_direction {
-                HorizontalDirection::Left => -scale,
-                HorizontalDirection::Right => scale,
-            },
-            vertical_scale: scale,
+            direction_scale,
             live_rendering_executed: false,
         };
         stack_y_px += config.height_px;
@@ -3955,8 +5280,13 @@ const fn legacy_runtime_player_render_empty_hat_preview() -> LegacyRuntimePlayer
         origin_x_px: 0,
         origin_y_px: 0,
         rotation: 0.0,
-        direction_scale: 0.0,
-        vertical_scale: 0.0,
+        direction_scale: LegacyRuntimePlayerRenderDirectionScale {
+            source: LegacyRuntimePlayerRenderDirectionScaleSource::PlayerPointingAngle,
+            pointing_angle: 0.0,
+            animation_facing: HorizontalDirection::Right,
+            direction_scale: 0.0,
+            vertical_scale: 0.0,
+        },
         live_rendering_executed: false,
     }
 }
@@ -4107,6 +5437,7 @@ struct LegacyRuntimePlayerRenderLayerGeometry {
     draw_x_px: f32,
     draw_y_px: f32,
     scale: f32,
+    direction_scale: LegacyRuntimePlayerRenderDirectionScale,
 }
 
 const fn legacy_runtime_player_render_color_layer(
@@ -4129,6 +5460,7 @@ const fn legacy_runtime_player_render_color_layer(
         draw_y_px: geometry.draw_y_px,
         rotation: 0.0,
         scale: geometry.scale,
+        direction_scale: geometry.direction_scale,
         live_rendering_executed: false,
     }
 }
@@ -4854,6 +6186,159 @@ fn legacy_runtime_portal_target_probe(
     })
 }
 
+fn legacy_runtime_portal_aim_render_intent_preview(
+    probe: Option<LegacyRuntimePortalTargetProbe>,
+    aim: LegacyRuntimePortalAimSnapshot,
+    render: LegacyRuntimeRenderContext,
+) -> Option<LegacyRuntimePortalAimRenderIntentPreview> {
+    let probe = probe?;
+    let trace_hit = probe.trace_hit;
+    let portal_possible = probe.portal_possible();
+    let color = legacy_runtime_portal_aim_color(portal_possible, 1.0);
+    let (target_x, target_y) = trace_hit
+        .map(|hit| (hit.impact_x, hit.impact_y))
+        .unwrap_or((probe.source_x, probe.source_y));
+    let distance_tiles =
+        ((target_x - probe.source_x).powi(2) + (target_y - probe.source_y).powi(2)).sqrt();
+    let dot_draws = trace_hit
+        .map(|_| {
+            legacy_runtime_portal_aim_dot_previews(
+                probe.source_x,
+                probe.source_y,
+                target_x,
+                target_y,
+                aim.portal_dots_timer,
+                portal_possible,
+                render,
+            )
+        })
+        .unwrap_or_default();
+    let crosshair = trace_hit.map(|hit| {
+        let x_px = (target_x - render.xscroll) * 16.0 * render.scale;
+        let y_px = (target_y - 0.5) * 16.0 * render.scale;
+        LegacyRuntimePortalAimCrosshairPreview {
+            x_px,
+            y_px,
+            draw_x_px: x_px.floor(),
+            draw_y_px: y_px.floor(),
+            rotation: legacy_runtime_portal_crosshair_rotation(hit.side),
+            origin_x_px: 4,
+            origin_y_px: 8,
+            color,
+            image_path: LEGACY_RUNTIME_PORTAL_CROSSHAIR_IMAGE_PATH,
+            scale: render.scale,
+            live_rendering_executed: false,
+        }
+    });
+
+    Some(LegacyRuntimePortalAimRenderIntentPreview {
+        player_source: probe.player_source,
+        source_x: probe.source_x,
+        source_y: probe.source_y,
+        pointing_angle: probe.pointing_angle,
+        requested_slot: probe.requested_slot,
+        trace_hit,
+        placement: probe.placement,
+        portal_possible,
+        target_x,
+        target_y,
+        distance_tiles,
+        dots_timer: aim.portal_dots_timer,
+        dots_time: LEGACY_RUNTIME_PORTAL_DOT_TIME,
+        dots_distance_tiles: LEGACY_RUNTIME_PORTAL_DOT_DISTANCE_TILES,
+        dots_inner_radius_px: LEGACY_RUNTIME_PORTAL_DOT_INNER_RADIUS_PX,
+        dots_outer_radius_px: LEGACY_RUNTIME_PORTAL_DOT_OUTER_RADIUS_PX,
+        dot_draws,
+        crosshair,
+        color_reset_after_dots: true,
+        color_reset_after_crosshair: crosshair.is_some(),
+        live_rendering_executed: false,
+        live_portal_mutated: false,
+    })
+}
+
+fn legacy_runtime_portal_aim_dot_previews(
+    source_x: f32,
+    source_y: f32,
+    target_x: f32,
+    target_y: f32,
+    dots_timer: f32,
+    portal_possible: bool,
+    render: LegacyRuntimeRenderContext,
+) -> Vec<LegacyRuntimePortalAimDotPreview> {
+    let distance_tiles = ((target_x - source_x).powi(2) + (target_y - source_y).powi(2)).sqrt();
+    let denominator = distance_tiles / LEGACY_RUNTIME_PORTAL_DOT_DISTANCE_TILES;
+    if denominator <= 0.0 {
+        return Vec::new();
+    }
+
+    let timer_phase = dots_timer / LEGACY_RUNTIME_PORTAL_DOT_TIME;
+    let upper = denominator + 1.0;
+    let mut dots = Vec::new();
+    let mut sequence_index = 1_u32;
+    while (sequence_index as f32) <= upper {
+        let phase = (sequence_index as f32 - 1.0 + timer_phase) / denominator;
+        if phase < 1.0 {
+            let xplus = (target_x - source_x) * 16.0 * render.scale * phase;
+            let yplus = (target_y - source_y) * 16.0 * render.scale * phase;
+            let x_px = (source_x - render.xscroll) * 16.0 * render.scale + xplus;
+            let y_px = (source_y - 0.5) * 16.0 * render.scale + yplus;
+            let radius_px = (xplus.powi(2) + yplus.powi(2)).sqrt() / render.scale;
+            let alpha = if radius_px < LEGACY_RUNTIME_PORTAL_DOT_OUTER_RADIUS_PX {
+                ((radius_px - LEGACY_RUNTIME_PORTAL_DOT_INNER_RADIUS_PX)
+                    * (LEGACY_RUNTIME_PORTAL_DOT_OUTER_RADIUS_PX
+                        - LEGACY_RUNTIME_PORTAL_DOT_INNER_RADIUS_PX))
+                    .max(0.0)
+            } else {
+                1.0
+            };
+            dots.push(LegacyRuntimePortalAimDotPreview {
+                sequence_index,
+                phase,
+                x_px,
+                y_px,
+                draw_x_px: (x_px - 0.25 * render.scale).floor(),
+                draw_y_px: (y_px - 0.25 * render.scale).floor(),
+                radius_px,
+                alpha,
+                color: legacy_runtime_portal_aim_color(portal_possible, alpha),
+                image_path: LEGACY_RUNTIME_PORTAL_DOT_IMAGE_PATH,
+                scale: render.scale,
+                live_rendering_executed: false,
+            });
+        }
+        sequence_index += 1;
+    }
+    dots
+}
+
+const fn legacy_runtime_portal_aim_color(portal_possible: bool, alpha: f32) -> LegacyColor {
+    if portal_possible {
+        LegacyColor {
+            r: 0.0,
+            g: 1.0,
+            b: 0.0,
+            a: alpha,
+        }
+    } else {
+        LegacyColor {
+            r: 1.0,
+            g: 0.0,
+            b: 0.0,
+            a: alpha,
+        }
+    }
+}
+
+const fn legacy_runtime_portal_crosshair_rotation(side: Facing) -> f32 {
+    match side {
+        Facing::Right => consts::FRAC_PI_2,
+        Facing::Down => consts::PI,
+        Facing::Left => consts::FRAC_PI_2 * 3.0,
+        Facing::Up => 0.0,
+    }
+}
+
 fn legacy_runtime_portal_transit_candidate_probe(
     player: LegacyRuntimePlayer,
     readiness: Option<LegacyRuntimePortalPairReadinessSummary>,
@@ -5451,6 +6936,7 @@ pub struct LegacyRuntimeFrameRequest {
     pub joystick_deadzone: f32,
     pub render: LegacyRuntimeRenderContext,
     pub sound: Option<LegacySoundEffect>,
+    pub player_pointing_angle: f32,
     pub portal_aim: Option<LegacyRuntimePortalAimSnapshot>,
     pub fireball_launch: Option<LegacyRuntimeFireballLaunchSnapshot>,
     pub fireball_collision_probe: Option<LegacyRuntimeFireballCollisionProbeRequest>,
@@ -5469,10 +6955,17 @@ impl LegacyRuntimeFrameRequest {
             joystick_deadzone,
             render,
             sound,
+            player_pointing_angle: LEGACY_RUNTIME_DEFAULT_PLAYER_POINTING_ANGLE,
             portal_aim: None,
             fireball_launch: None,
             fireball_collision_probe: None,
         }
+    }
+
+    #[must_use]
+    pub const fn with_player_pointing_angle(mut self, player_pointing_angle: f32) -> Self {
+        self.player_pointing_angle = player_pointing_angle;
+        self
     }
 
     #[must_use]
@@ -5578,13 +7071,25 @@ impl Error for LegacyRuntimeLoadError {
 #[cfg(test)]
 mod tests {
     use super::{
-        LegacyRuntimeBlockBounceItemSpawnIntent, LegacyRuntimeBlockContainedRewardRevealIntent,
-        LegacyRuntimeBlockDebrisAnimationState, LegacyRuntimeBlockEnemyShotIntent,
-        LegacyRuntimeBlockItemJumpIntent, LegacyRuntimeBlockJumpItemSnapshot,
-        LegacyRuntimeBlockTopCoinCollectionIntent, LegacyRuntimeBlockTopEnemySnapshot,
-        LegacyRuntimeBreakableBlockCleanupAction, LegacyRuntimeBreakableBlockCleanupProjection,
-        LegacyRuntimeBreakableBlockCleanupSource, LegacyRuntimeCoinBlockRewardIntent,
-        LegacyRuntimeCoinCounterIntent, LegacyRuntimeCoinCounterSource,
+        LEGACY_RUNTIME_DEFAULT_PLAYER_POINTING_ANGLE, LEGACY_RUNTIME_DOOR_CENTER_IMAGE_PATH,
+        LEGACY_RUNTIME_DOOR_PIECE_IMAGE_PATH, LEGACY_RUNTIME_EMANCIPATION_GRILL_LINE_COLOR,
+        LEGACY_RUNTIME_EMANCIPATION_GRILL_PARTICLE_IMAGE_PATH,
+        LEGACY_RUNTIME_EMANCIPATION_GRILL_SIDE_IMAGE_PATH,
+        LEGACY_RUNTIME_PORTAL_CROSSHAIR_IMAGE_PATH, LEGACY_RUNTIME_PORTAL_DOT_DISTANCE_TILES,
+        LEGACY_RUNTIME_PORTAL_DOT_IMAGE_PATH, LEGACY_RUNTIME_PORTAL_DOT_TIME,
+        LEGACY_RUNTIME_PORTAL_PROJECTILE_IMAGE_PATH,
+        LEGACY_RUNTIME_PORTAL_PROJECTILE_PARTICLE_IMAGE_PATH,
+        LEGACY_RUNTIME_WALL_INDICATOR_IMAGE_PATH, LegacyRuntimeBlockBounceItemSpawnIntent,
+        LegacyRuntimeBlockContainedRewardRevealIntent, LegacyRuntimeBlockDebrisAnimationState,
+        LegacyRuntimeBlockEnemyShotIntent, LegacyRuntimeBlockItemJumpIntent,
+        LegacyRuntimeBlockJumpItemSnapshot, LegacyRuntimeBlockTopCoinCollectionIntent,
+        LegacyRuntimeBlockTopEnemySnapshot, LegacyRuntimeBreakableBlockCleanupAction,
+        LegacyRuntimeBreakableBlockCleanupProjection, LegacyRuntimeBreakableBlockCleanupSource,
+        LegacyRuntimeCoinBlockRewardIntent, LegacyRuntimeCoinCounterIntent,
+        LegacyRuntimeCoinCounterSource, LegacyRuntimeDoorPartKind, LegacyRuntimeDoorSnapshot,
+        LegacyRuntimeEmancipationGrillLinePreview, LegacyRuntimeEmancipationGrillParticleDirection,
+        LegacyRuntimeEmancipationGrillParticleSnapshot,
+        LegacyRuntimeEmancipationGrillScissorPreview, LegacyRuntimeEmancipationGrillSnapshot,
         LegacyRuntimeEmptyBreakableBlockDestroyIntent, LegacyRuntimeFireballCallback,
         LegacyRuntimeFireballCallbackMetadata, LegacyRuntimeFireballCollisionAxis,
         LegacyRuntimeFireballCollisionProbeRequest, LegacyRuntimeFireballCollisionProbeSource,
@@ -5596,25 +7101,28 @@ mod tests {
         LegacyRuntimeFrameRequest, LegacyRuntimeLevelSelection,
         LegacyRuntimeManyCoinsTimerStartReport, LegacyRuntimeManyCoinsTimerUpdateReport,
         LegacyRuntimePlayer, LegacyRuntimePlayerCollisionAxis, LegacyRuntimePlayerPowerUp,
-        LegacyRuntimePlayerRenderFrame, LegacyRuntimePlayerRenderHatSize,
-        LegacyRuntimePlayerRenderQuad, LegacyRuntimePlayerRenderTintSource,
+        LegacyRuntimePlayerRenderDirectionScaleSource, LegacyRuntimePlayerRenderFrame,
+        LegacyRuntimePlayerRenderHatSize, LegacyRuntimePlayerRenderQuad,
+        LegacyRuntimePlayerRenderScissorPreview, LegacyRuntimePlayerRenderTintSource,
         LegacyRuntimePortalAimSnapshot, LegacyRuntimePortalBlockedExitBounceAxis,
         LegacyRuntimePortalBlockedExitProbe, LegacyRuntimePortalCoordsPreviewReport,
         LegacyRuntimePortalOutcomeIntent, LegacyRuntimePortalOutcomeKind,
         LegacyRuntimePortalPairReadinessSummary, LegacyRuntimePortalPairing,
-        LegacyRuntimePortalPlacement, LegacyRuntimePortalReplacementSummary,
+        LegacyRuntimePortalPlacement, LegacyRuntimePortalProjectileParticleSnapshot,
+        LegacyRuntimePortalProjectileSnapshot, LegacyRuntimePortalReplacementSummary,
         LegacyRuntimePortalReservationProjection, LegacyRuntimePortalSlot,
-        LegacyRuntimePortalTransitAudioIntent, LegacyRuntimePortalTransitCandidateProbe,
-        LegacyRuntimePortalTransitOutcomeKind, LegacyRuntimePortalTransitOutcomeSummary,
-        LegacyRuntimePortalWallReservation, LegacyRuntimeProjectedFireballCountSource,
-        LegacyRuntimeProjectedFireballEnemyHitSnapshot,
+        LegacyRuntimePortalTargetPlayerSource, LegacyRuntimePortalTransitAudioIntent,
+        LegacyRuntimePortalTransitCandidateProbe, LegacyRuntimePortalTransitOutcomeKind,
+        LegacyRuntimePortalTransitOutcomeSummary, LegacyRuntimePortalWallReservation,
+        LegacyRuntimeProjectedFireballCountSource, LegacyRuntimeProjectedFireballEnemyHitSnapshot,
         LegacyRuntimeProjectedFireballEnemyHitState, LegacyRuntimeProjectedPlayerStateSnapshot,
         LegacyRuntimeProjectedPlayerStateSource, LegacyRuntimeProjectedPortal,
         LegacyRuntimeProjectedPortalState, LegacyRuntimeRenderContext,
         LegacyRuntimeScoreCounterIntent, LegacyRuntimeScoreSource,
         LegacyRuntimeScrollingScoreAnimationState, LegacyRuntimeShell,
         LegacyRuntimeTileChangeProjection, LegacyRuntimeTileChangeSource,
-        legacy_runtime_player_render_intent_preview, probe_legacy_runtime_fireball_collisions,
+        LegacyRuntimeWallIndicatorSnapshot, legacy_runtime_player_render_intent_preview,
+        probe_legacy_runtime_fireball_collisions,
     };
     use crate::{
         assets::{BufferedLegacyAssetSource, LEGACY_PORTAL_BACKGROUND_PATH},
@@ -5641,6 +7149,7 @@ mod tests {
         PlayerAnimationState, PlayerBodyBounds, PlayerMovementInput, PlayerMovementState,
         TileCoord, TileId,
     };
+    use std::f32::consts;
 
     const FIREBALL_ENEMY_OVERLAP_FIXTURES: &str =
         include_str!("../tests/fixtures/legacy_fireball_enemy_overlaps.generated.tsv");
@@ -5951,6 +7460,7 @@ mod tests {
                 .all(|layer| layer.quad == preview.quad
                     && layer.draw_x_px == preview.draw_x_px
                     && layer.draw_y_px == preview.draw_y_px
+                    && layer.direction_scale == preview.direction_scale
                     && !layer.live_rendering_executed)
         );
         assert_eq!(preview.hat_draw_count, 1);
@@ -5977,8 +7487,24 @@ mod tests {
         assert_close(preview.hat_draws[0].draw_y_px, preview.draw_y_px);
         assert_eq!(preview.hat_draws[0].origin_x_px, 4);
         assert_eq!(preview.hat_draws[0].origin_y_px, 16);
-        assert_close(preview.hat_draws[0].direction_scale, -2.0);
-        assert_close(preview.hat_draws[0].vertical_scale, 2.0);
+        assert_eq!(
+            preview.direction_scale.source,
+            LegacyRuntimePlayerRenderDirectionScaleSource::PlayerPointingAngle,
+        );
+        assert_eq!(
+            preview.direction_scale.animation_facing,
+            HorizontalDirection::Left,
+        );
+        assert_close(
+            preview.direction_scale.pointing_angle,
+            LEGACY_RUNTIME_DEFAULT_PLAYER_POINTING_ANGLE,
+        );
+        assert_close(preview.direction_scale.direction_scale, 2.0);
+        assert_close(preview.direction_scale.vertical_scale, 2.0);
+        assert_eq!(
+            preview.hat_draws[0].direction_scale,
+            preview.direction_scale
+        );
         assert_eq!(
             preview.hat_draws[0].tint_source,
             LegacyRuntimePlayerRenderTintSource::FlowerColor,
@@ -5992,6 +7518,122 @@ mod tests {
         assert!(!preview.live_rendering_executed);
         assert!(!preview.live_player_mutated);
         assert_eq!(player, frame.player);
+    }
+
+    #[test]
+    fn shell_reports_player_render_portal_clone_preview_without_live_rendering_or_player_mutation()
+    {
+        let cells = flat_level_cells(10);
+        let mut shell = loaded_test_shell(&cells);
+        let portal_1_projection = LegacyRuntimePortalReservationProjection {
+            requested_slot: LegacyRuntimePortalSlot::Portal1,
+            placement: LegacyRuntimePortalPlacement {
+                coord: LegacyMapTileCoord::new(5, 6),
+                side: Facing::Right,
+            },
+            tile_reservations: [LegacyMapTileCoord::new(5, 6), LegacyMapTileCoord::new(5, 7)],
+            wall_reservations: [
+                LegacyRuntimePortalWallReservation::new(4, 5, 0, 2),
+                LegacyRuntimePortalWallReservation::new(4, 5, 1, 0),
+                LegacyRuntimePortalWallReservation::new(4, 7, 1, 0),
+            ],
+        };
+        let portal_2_projection = LegacyRuntimePortalReservationProjection {
+            requested_slot: LegacyRuntimePortalSlot::Portal2,
+            placement: LegacyRuntimePortalPlacement {
+                coord: LegacyMapTileCoord::new(9, 4),
+                side: Facing::Right,
+            },
+            tile_reservations: [LegacyMapTileCoord::new(9, 4), LegacyMapTileCoord::new(9, 5)],
+            wall_reservations: [
+                LegacyRuntimePortalWallReservation::new(8, 3, 0, 2),
+                LegacyRuntimePortalWallReservation::new(8, 3, 1, 0),
+                LegacyRuntimePortalWallReservation::new(8, 5, 1, 0),
+            ],
+        };
+        shell
+            .projected_portal_state
+            .apply_projection(portal_1_projection);
+        shell
+            .projected_portal_state
+            .apply_projection(portal_2_projection);
+        let movement = PlayerMovementState {
+            animation_direction: HorizontalDirection::Left,
+            ..PlayerMovementState::default()
+        };
+        let mut player = LegacyRuntimePlayer::new(
+            PlayerBodyBounds::new(3.875, 4.875, 12.0 / 16.0, 12.0 / 16.0),
+            movement,
+        );
+        let original_player = player;
+
+        let frame = shell.step_player_frame(
+            &mut player,
+            &BufferedLegacyInputSnapshot::new(),
+            LegacyRuntimeFrameRequest::new(
+                0.0,
+                0.2,
+                LegacyRuntimeRenderContext::new(0.0, 2.0),
+                None,
+            )
+            .with_player_pointing_angle(0.25),
+            &test_tiles(),
+        );
+
+        let clone = frame
+            .player_render_preview
+            .portal_clone
+            .expect("player center is inside a ready portal pair");
+        assert_eq!(clone.entry_slot, LegacyRuntimePortalSlot::Portal1);
+        assert_eq!(clone.exit_slot, LegacyRuntimePortalSlot::Portal2);
+        assert_eq!(clone.entry_facing, Facing::Right);
+        assert_eq!(clone.exit_facing, Facing::Right);
+        assert_eq!(
+            clone.entry_scissor,
+            LegacyRuntimePlayerRenderScissorPreview {
+                x_px: 160.0,
+                y_px: 80.0,
+                width_px: 128.0,
+                height_px: 192.0,
+            },
+        );
+        assert_eq!(
+            clone.exit_scissor,
+            LegacyRuntimePlayerRenderScissorPreview {
+                x_px: 288.0,
+                y_px: 16.0,
+                width_px: 128.0,
+                height_px: 192.0,
+            },
+        );
+        assert_eq!(clone.input_body, original_player.body);
+        assert_eq!(
+            clone.output_body,
+            PlayerBodyBounds::new(9.375, 2.875, 12.0 / 16.0, 12.0 / 16.0),
+        );
+        assert_close(clone.input_rotation, 0.0);
+        assert_close(clone.output_rotation, 0.0);
+        assert_eq!(clone.input_animation_direction, HorizontalDirection::Left);
+        assert_eq!(clone.output_animation_direction, HorizontalDirection::Right);
+        assert!(clone.animation_direction_flipped);
+        assert_close(clone.draw_x_px, 312.0);
+        assert_close(clone.draw_y_px, 86.0);
+        assert_eq!(
+            clone.direction_scale.source,
+            LegacyRuntimePlayerRenderDirectionScaleSource::PortalCloneAnimationDirection,
+        );
+        assert_close(clone.direction_scale.pointing_angle, 0.25);
+        assert_eq!(
+            clone.direction_scale.animation_facing,
+            HorizontalDirection::Right,
+        );
+        assert_close(clone.direction_scale.direction_scale, 2.0);
+        assert_close(clone.direction_scale.vertical_scale, 2.0);
+        assert!(clone.scissor_reset_to_current);
+        assert!(!clone.live_rendering_executed);
+        assert!(!clone.live_player_mutated);
+        assert_eq!(player.body, original_player.body);
+        assert_eq!(frame.player.body, original_player.body);
     }
 
     #[test]
@@ -6282,7 +7924,12 @@ mod tests {
                 .with_power_up(power_up)
                 .with_fire_animation_timer(fire_timer);
 
-            let preview = legacy_runtime_player_render_intent_preview(player, render);
+            let preview = legacy_runtime_player_render_intent_preview(
+                player,
+                render,
+                LEGACY_RUNTIME_DEFAULT_PLAYER_POINTING_ANGLE,
+                None,
+            );
 
             assert_eq!(preview.render_frame, expected_frame);
             assert_eq!(preview.quad, expected_quad);
@@ -6348,7 +7995,12 @@ mod tests {
         )
         .with_hat_slots([1, 2, 0, 0], 2);
 
-        let preview = legacy_runtime_player_render_intent_preview(player, render);
+        let preview = legacy_runtime_player_render_intent_preview(
+            player,
+            render,
+            LEGACY_RUNTIME_DEFAULT_PLAYER_POINTING_ANGLE,
+            None,
+        );
 
         assert_eq!(preview.hat_draw_count, 2);
         assert_eq!(
@@ -6399,8 +8051,16 @@ mod tests {
             preview.hat_draws[1].tint_source,
             LegacyRuntimePlayerRenderTintSource::White,
         );
-        assert_close(preview.hat_draws[0].direction_scale, 1.0);
-        assert_close(preview.hat_draws[1].direction_scale, 1.0);
+        assert_close(preview.hat_draws[0].direction_scale.direction_scale, 1.0);
+        assert_close(preview.hat_draws[1].direction_scale.direction_scale, 1.0);
+        assert_eq!(
+            preview.hat_draws[0].direction_scale,
+            preview.direction_scale
+        );
+        assert_eq!(
+            preview.hat_draws[1].direction_scale,
+            preview.direction_scale
+        );
         assert!(!preview.hat_draws[0].live_rendering_executed);
         assert!(!preview.hat_draws[1].live_rendering_executed);
         assert_eq!(preview.player, player);
@@ -6645,6 +8305,375 @@ mod tests {
             frame.collisions.block_hits.is_empty(),
             "fireball progression reports animation/removal only; projectile collisions stay Lua-owned",
         );
+    }
+
+    #[test]
+    fn shell_reports_portal_projectile_render_preview_without_physics_or_portal_mutation() {
+        let cells = flat_level_cells(2);
+        let mut shell = loaded_test_shell(&cells);
+        let snapshot = LegacyRuntimePortalProjectileSnapshot::new(
+            4.25,
+            5.5,
+            0.25,
+            1.0,
+            LegacyColor {
+                r: 0.0,
+                g: 0.4,
+                b: 1.0,
+                a: 1.0,
+            },
+        )
+        .with_particle(LegacyRuntimePortalProjectileParticleSnapshot::new(
+            4.0,
+            5.25,
+            LegacyColor {
+                r: 0.0,
+                g: 0.2,
+                b: 0.5,
+                a: 0.6,
+            },
+        ));
+        shell.portal_projectiles.push(snapshot.clone());
+        let mut player = LegacyRuntimePlayer::new(
+            PlayerBodyBounds::new(1.0, 3.0, 12.0 / 16.0, 12.0 / 16.0),
+            PlayerMovementState::default(),
+        );
+
+        let frame = shell.step_player_frame(
+            &mut player,
+            &BufferedLegacyInputSnapshot::new(),
+            LegacyRuntimeFrameRequest::new(
+                0.0,
+                0.2,
+                LegacyRuntimeRenderContext::new(1.0, 2.0),
+                None,
+            ),
+            &test_tiles(),
+        );
+
+        assert_eq!(frame.portal_projectile_render_previews.previews.len(), 1);
+        let preview = &frame.portal_projectile_render_previews.previews[0];
+        assert_eq!(preview.projectile_index, 0);
+        assert_eq!(preview.snapshot, snapshot);
+        assert_eq!(preview.particle_draws.len(), 1);
+        let particle = preview.particle_draws[0];
+        assert_eq!(particle.particle_index, 0);
+        assert_eq!(particle.draw_x_px, 96.0);
+        assert_eq!(particle.draw_y_px, 152.0);
+        assert_eq!(
+            particle.image_path,
+            LEGACY_RUNTIME_PORTAL_PROJECTILE_PARTICLE_IMAGE_PATH,
+        );
+        assert_eq!(particle.origin_x_px, 0.5);
+        assert_eq!(particle.origin_y_px, 0.5);
+        assert!(!particle.live_rendering_executed);
+        let head = preview
+            .head_draw
+            .expect("projectile head should draw while timer is below travel time");
+        assert_eq!(head.draw_x_px, 104.0);
+        assert_eq!(head.draw_y_px, 160.0);
+        assert_eq!(head.image_path, LEGACY_RUNTIME_PORTAL_PROJECTILE_IMAGE_PATH);
+        assert_eq!(head.origin_x_px, 3.0);
+        assert_eq!(head.origin_y_px, 3.0);
+        assert!(preview.particles_drawn_before_head);
+        assert!(!preview.color_reset_after_draw);
+        assert!(!preview.live_rendering_executed);
+        assert!(!preview.live_projectile_physics_migrated);
+        assert!(!preview.live_portal_mutated);
+        assert_eq!(shell.portal_projectiles, vec![snapshot]);
+    }
+
+    #[test]
+    fn shell_reports_emancipation_grill_render_preview_without_rendering_or_physics_migration() {
+        let cells = flat_level_cells(2);
+        let mut shell = loaded_test_shell(&cells);
+        let horizontal =
+            LegacyRuntimeEmancipationGrillSnapshot::horizontal(3.0, 4.0, 2.0, 5.0, 160.0)
+                .with_particle(LegacyRuntimeEmancipationGrillParticleSnapshot::new(
+                    0.25,
+                    LegacyRuntimeEmancipationGrillParticleDirection::Forward,
+                    1.0,
+                ))
+                .with_particle(LegacyRuntimeEmancipationGrillParticleSnapshot::new(
+                    0.5,
+                    LegacyRuntimeEmancipationGrillParticleDirection::Backward,
+                    -1.0,
+                ));
+        let vertical = LegacyRuntimeEmancipationGrillSnapshot::vertical(4.0, 5.0, 3.0, 8.0, 192.0)
+            .with_particle(LegacyRuntimeEmancipationGrillParticleSnapshot::new(
+                0.25,
+                LegacyRuntimeEmancipationGrillParticleDirection::Forward,
+                2.0,
+            ))
+            .with_particle(LegacyRuntimeEmancipationGrillParticleSnapshot::new(
+                0.5,
+                LegacyRuntimeEmancipationGrillParticleDirection::Backward,
+                0.0,
+            ));
+        shell.emancipation_grills.push(horizontal.clone());
+        shell.emancipation_grills.push(vertical.clone());
+        let mut player = LegacyRuntimePlayer::new(
+            PlayerBodyBounds::new(1.0, 3.0, 12.0 / 16.0, 12.0 / 16.0),
+            PlayerMovementState::default(),
+        );
+
+        let frame = shell.step_player_frame(
+            &mut player,
+            &BufferedLegacyInputSnapshot::new(),
+            LegacyRuntimeFrameRequest::new(
+                0.0,
+                0.2,
+                LegacyRuntimeRenderContext::new(1.0, 2.0),
+                None,
+            ),
+            &test_tiles(),
+        );
+
+        assert_eq!(frame.emancipation_grill_render_previews.previews.len(), 2);
+        let horizontal_preview = &frame.emancipation_grill_render_previews.previews[0];
+        assert_eq!(horizontal_preview.grill_index, 0);
+        assert_eq!(horizontal_preview.snapshot, horizontal);
+        assert_eq!(
+            horizontal_preview.scissor,
+            Some(LegacyRuntimeEmancipationGrillScissorPreview {
+                x_px: 0.0,
+                y_px: 92.0,
+                width_px: 32.0,
+                height_px: 8.0,
+            }),
+        );
+        assert_eq!(
+            horizontal_preview.line_rect,
+            Some(LegacyRuntimeEmancipationGrillLinePreview {
+                x_px: 0.0,
+                y_px: 92.0,
+                width_px: 160.0,
+                height_px: 8.0,
+                color: LEGACY_RUNTIME_EMANCIPATION_GRILL_LINE_COLOR,
+            }),
+        );
+        assert_eq!(horizontal_preview.particle_draws.len(), 2);
+        assert_eq!(horizontal_preview.particle_draws[0].draw_x_px, 40.0);
+        assert_eq!(horizontal_preview.particle_draws[0].draw_y_px, 94.0);
+        assert_eq!(
+            horizontal_preview.particle_draws[0].image_path,
+            LEGACY_RUNTIME_EMANCIPATION_GRILL_PARTICLE_IMAGE_PATH,
+        );
+        assert_eq!(
+            horizontal_preview.particle_draws[0].rotation,
+            consts::FRAC_PI_2,
+        );
+        assert_eq!(horizontal_preview.particle_draws[0].origin_x_px, 0.0);
+        assert_eq!(horizontal_preview.particle_draws[1].draw_x_px, 16.0);
+        assert_eq!(horizontal_preview.particle_draws[1].draw_y_px, 98.0);
+        assert_eq!(
+            horizontal_preview.particle_draws[1].rotation,
+            -consts::FRAC_PI_2,
+        );
+        assert_eq!(horizontal_preview.particle_draws[1].origin_x_px, 1.0);
+        assert_eq!(horizontal_preview.side_draws.len(), 2);
+        assert_eq!(horizontal_preview.side_draws[0].draw_x_px, 0.0);
+        assert_eq!(horizontal_preview.side_draws[0].draw_y_px, 88.0);
+        assert_eq!(
+            horizontal_preview.side_draws[0].image_path,
+            LEGACY_RUNTIME_EMANCIPATION_GRILL_SIDE_IMAGE_PATH,
+        );
+        assert_eq!(horizontal_preview.side_draws[1].draw_x_px, 128.0);
+        assert_eq!(horizontal_preview.side_draws[1].draw_y_px, 104.0);
+        assert_eq!(horizontal_preview.side_draws[1].rotation, consts::PI);
+        assert!(horizontal_preview.scissor_cleared_after_particles);
+        assert!(horizontal_preview.color_reset_after_line);
+        assert!(!horizontal_preview.live_rendering_executed);
+        assert!(!horizontal_preview.live_grill_physics_migrated);
+
+        let vertical_preview = &frame.emancipation_grill_render_previews.previews[1];
+        assert_eq!(vertical_preview.grill_index, 1);
+        assert_eq!(vertical_preview.snapshot, vertical);
+        assert_eq!(
+            vertical_preview.scissor,
+            Some(LegacyRuntimeEmancipationGrillScissorPreview {
+                x_px: 76.0,
+                y_px: 48.0,
+                width_px: 8.0,
+                height_px: 64.0,
+            }),
+        );
+        assert_eq!(
+            vertical_preview.line_rect,
+            Some(LegacyRuntimeEmancipationGrillLinePreview {
+                x_px: 76.0,
+                y_px: 48.0,
+                width_px: 8.0,
+                height_px: 64.0,
+                color: LEGACY_RUNTIME_EMANCIPATION_GRILL_LINE_COLOR,
+            }),
+        );
+        assert_eq!(vertical_preview.particle_draws[0].draw_x_px, 78.0);
+        assert_eq!(vertical_preview.particle_draws[0].draw_y_px, 112.0);
+        assert_eq!(vertical_preview.particle_draws[0].rotation, consts::PI);
+        assert_eq!(vertical_preview.particle_draws[1].draw_x_px, 82.0);
+        assert_eq!(vertical_preview.particle_draws[1].draw_y_px, 128.0);
+        assert_eq!(vertical_preview.particle_draws[1].rotation, 0.0);
+        assert_eq!(vertical_preview.side_draws[0].draw_x_px, 88.0);
+        assert_eq!(vertical_preview.side_draws[0].draw_y_px, 48.0);
+        assert_eq!(vertical_preview.side_draws[0].rotation, consts::FRAC_PI_2);
+        assert_eq!(vertical_preview.side_draws[1].draw_x_px, 72.0);
+        assert_eq!(vertical_preview.side_draws[1].draw_y_px, 240.0);
+        assert_eq!(vertical_preview.side_draws[1].rotation, -consts::FRAC_PI_2,);
+        assert_eq!(shell.emancipation_grills, vec![horizontal, vertical]);
+    }
+
+    #[test]
+    fn shell_reports_door_render_preview_without_rendering_or_entity_migration() {
+        let cells = flat_level_cells(2);
+        let mut shell = loaded_test_shell(&cells);
+        let horizontal = LegacyRuntimeDoorSnapshot::from_legacy_horizontal_coord(4.0, 5.0, 0.25);
+        let vertical = LegacyRuntimeDoorSnapshot::from_legacy_vertical_coord(6.0, 7.0, 0.75)
+            .with_open(true)
+            .with_active(false);
+        shell.doors.push(horizontal);
+        shell.doors.push(vertical);
+        let mut player = LegacyRuntimePlayer::new(
+            PlayerBodyBounds::new(1.0, 3.0, 12.0 / 16.0, 12.0 / 16.0),
+            PlayerMovementState::default(),
+        );
+
+        let frame = shell.step_player_frame(
+            &mut player,
+            &BufferedLegacyInputSnapshot::new(),
+            LegacyRuntimeFrameRequest::new(
+                0.0,
+                0.2,
+                LegacyRuntimeRenderContext::new(1.0, 2.0),
+                None,
+            ),
+            &test_tiles(),
+        );
+
+        assert_eq!(frame.door_render_previews.previews.len(), 2);
+        let horizontal_preview = &frame.door_render_previews.previews[0];
+        assert_eq!(horizontal_preview.door_index, 0);
+        assert_eq!(horizontal_preview.snapshot, horizontal);
+        assert_eq!(horizontal_preview.ymod_tiles, 0.0);
+        assert_eq!(horizontal_preview.center_rotation_delta, consts::PI * 0.25);
+        assert_eq!(
+            horizontal_preview.part_draws[0].kind,
+            LegacyRuntimeDoorPartKind::Piece
+        );
+        assert_eq!(horizontal_preview.part_draws[0].draw_x_px, 92.0);
+        assert_eq!(horizontal_preview.part_draws[0].draw_y_px, 128.0);
+        assert_eq!(
+            horizontal_preview.part_draws[0].image_path,
+            LEGACY_RUNTIME_DOOR_PIECE_IMAGE_PATH,
+        );
+        assert_eq!(horizontal_preview.part_draws[0].rotation, consts::FRAC_PI_2);
+        assert_eq!(horizontal_preview.part_draws[1].draw_x_px, 100.0);
+        assert_eq!(horizontal_preview.part_draws[1].rotation, consts::PI * 1.5);
+        assert_eq!(
+            horizontal_preview.part_draws[2].kind,
+            LegacyRuntimeDoorPartKind::Center
+        );
+        assert_eq!(horizontal_preview.part_draws[2].draw_x_px, 96.0);
+        assert_eq!(
+            horizontal_preview.part_draws[2].image_path,
+            LEGACY_RUNTIME_DOOR_CENTER_IMAGE_PATH,
+        );
+        assert_eq!(
+            horizontal_preview.part_draws[2].rotation,
+            consts::FRAC_PI_2 - consts::PI * 0.25,
+        );
+        assert_eq!(horizontal_preview.part_draws[2].origin_y_px, 2.0);
+        assert_eq!(horizontal_preview.part_draws[3].draw_x_px, 96.0);
+        assert_eq!(
+            horizontal_preview.part_draws[3].rotation,
+            consts::PI * 1.5 - consts::PI * 0.25,
+        );
+        assert!(!horizontal_preview.live_rendering_executed);
+        assert!(!horizontal_preview.live_door_physics_migrated);
+        assert!(!horizontal_preview.live_door_entity_mutated);
+
+        let vertical_preview = &frame.door_render_previews.previews[1];
+        assert_eq!(vertical_preview.door_index, 1);
+        assert_eq!(vertical_preview.snapshot, vertical);
+        assert_eq!(vertical_preview.ymod_tiles, 0.5);
+        assert_eq!(vertical_preview.center_rotation_delta, consts::FRAC_PI_2);
+        assert_eq!(vertical_preview.part_draws[0].draw_x_px, 144.0);
+        assert_eq!(vertical_preview.part_draws[0].draw_y_px, 156.0);
+        assert_eq!(vertical_preview.part_draws[0].rotation, consts::PI);
+        assert_eq!(vertical_preview.part_draws[1].draw_y_px, 196.0);
+        assert_eq!(vertical_preview.part_draws[1].rotation, 0.0);
+        assert_eq!(vertical_preview.part_draws[2].draw_y_px, 160.0);
+        assert_eq!(vertical_preview.part_draws[2].rotation, consts::FRAC_PI_2);
+        assert_eq!(vertical_preview.part_draws[3].draw_y_px, 192.0);
+        assert_eq!(
+            vertical_preview.part_draws[3].rotation,
+            consts::PI + consts::FRAC_PI_2,
+        );
+        assert!(!vertical_preview.live_rendering_executed);
+        assert!(!vertical_preview.live_door_physics_migrated);
+        assert!(!vertical_preview.live_door_entity_mutated);
+        assert_eq!(shell.doors, vec![horizontal, vertical]);
+    }
+
+    #[test]
+    fn shell_reports_wall_indicator_render_preview_without_rendering_or_entity_migration() {
+        let cells = flat_level_cells(2);
+        let mut shell = loaded_test_shell(&cells);
+        let off = LegacyRuntimeWallIndicatorSnapshot::from_legacy_coord(4.0, 5.0, false);
+        let on = LegacyRuntimeWallIndicatorSnapshot::from_legacy_coord(6.0, 7.0, true);
+        shell.wall_indicators.push(off);
+        shell.wall_indicators.push(on);
+        let mut player = LegacyRuntimePlayer::new(
+            PlayerBodyBounds::new(1.0, 3.0, 12.0 / 16.0, 12.0 / 16.0),
+            PlayerMovementState::default(),
+        );
+
+        let frame = shell.step_player_frame(
+            &mut player,
+            &BufferedLegacyInputSnapshot::new(),
+            LegacyRuntimeFrameRequest::new(
+                0.0,
+                0.2,
+                LegacyRuntimeRenderContext::new(1.0, 2.0),
+                None,
+            ),
+            &test_tiles(),
+        );
+
+        assert_eq!(frame.wall_indicator_render_previews.previews.len(), 2);
+        let off_preview = frame.wall_indicator_render_previews.previews[0];
+        assert_eq!(off_preview.indicator_index, 0);
+        assert_eq!(off_preview.snapshot, off);
+        assert_eq!(off_preview.quad_index, 1);
+        assert_eq!(off_preview.source_x_px, 0.0);
+        assert_eq!(off_preview.source_y_px, 0.0);
+        assert_eq!(off_preview.source_w_px, 16.0);
+        assert_eq!(off_preview.source_h_px, 16.0);
+        assert_eq!(
+            off_preview.image_path,
+            LEGACY_RUNTIME_WALL_INDICATOR_IMAGE_PATH
+        );
+        assert_eq!(off_preview.draw_x_px, 64.0);
+        assert_eq!(off_preview.draw_y_px, 112.0);
+        assert_eq!(off_preview.rotation, 0.0);
+        assert_eq!(off_preview.scale_x, 2.0);
+        assert_eq!(off_preview.scale_y, 2.0);
+        assert_eq!(off_preview.color, LegacyColor::rgb(1.0, 1.0, 1.0));
+        assert!(!off_preview.live_rendering_executed);
+        assert!(!off_preview.live_wall_indicator_physics_migrated);
+        assert!(!off_preview.live_wall_indicator_entity_mutated);
+
+        let on_preview = frame.wall_indicator_render_previews.previews[1];
+        assert_eq!(on_preview.indicator_index, 1);
+        assert_eq!(on_preview.snapshot, on);
+        assert_eq!(on_preview.quad_index, 2);
+        assert_eq!(on_preview.source_x_px, 16.0);
+        assert_eq!(on_preview.draw_x_px, 128.0);
+        assert_eq!(on_preview.draw_y_px, 176.0);
+        assert!(!on_preview.live_rendering_executed);
+        assert!(!on_preview.live_wall_indicator_physics_migrated);
+        assert!(!on_preview.live_wall_indicator_entity_mutated);
+        assert_eq!(shell.wall_indicators, vec![off, on]);
     }
 
     #[test]
@@ -8220,6 +10249,73 @@ mod tests {
         assert_eq!(hit.tendency, -1);
         assert_close(hit.impact_x, 3.0);
         assert_close(hit.impact_y, 3.455_678);
+        let aim_preview = frame
+            .portal_aim_render_preview
+            .as_ref()
+            .expect("active portal aim should expose draw-loop metadata");
+        assert_eq!(
+            aim_preview.player_source,
+            LegacyRuntimePortalTargetPlayerSource::LivePlayer
+        );
+        assert_eq!(
+            aim_preview.requested_slot,
+            Some(LegacyRuntimePortalSlot::Portal1)
+        );
+        assert!(aim_preview.portal_possible);
+        assert_close(aim_preview.source_x, 2.375);
+        assert_close(aim_preview.source_y, 3.5);
+        assert_close(aim_preview.target_x, 3.0);
+        assert_close(aim_preview.target_y, 3.455_678);
+        assert_eq!(aim_preview.dots_timer, 0.0);
+        assert_eq!(aim_preview.dots_time, LEGACY_RUNTIME_PORTAL_DOT_TIME);
+        assert_eq!(
+            aim_preview.dots_distance_tiles,
+            LEGACY_RUNTIME_PORTAL_DOT_DISTANCE_TILES,
+        );
+        assert_eq!(aim_preview.dot_draws.len(), 1);
+        let dot = aim_preview.dot_draws[0];
+        assert_eq!(dot.sequence_index, 1);
+        assert_eq!(dot.phase, 0.0);
+        assert_eq!(dot.draw_x_px, 37.0);
+        assert_eq!(dot.draw_y_px, 47.0);
+        assert_eq!(dot.alpha, 0.0);
+        assert_eq!(
+            dot.color,
+            LegacyColor {
+                r: 0.0,
+                g: 1.0,
+                b: 0.0,
+                a: 0.0,
+            },
+        );
+        assert_eq!(dot.image_path, LEGACY_RUNTIME_PORTAL_DOT_IMAGE_PATH);
+        assert!(!dot.live_rendering_executed);
+        let crosshair = aim_preview
+            .crosshair
+            .expect("trace hit should expose crosshair metadata");
+        assert_eq!(crosshair.draw_x_px, 48.0);
+        assert_eq!(crosshair.draw_y_px, 47.0);
+        assert_eq!(crosshair.rotation, consts::FRAC_PI_2 * 3.0);
+        assert_eq!(crosshair.origin_x_px, 4);
+        assert_eq!(crosshair.origin_y_px, 8);
+        assert_eq!(
+            crosshair.color,
+            LegacyColor {
+                r: 0.0,
+                g: 1.0,
+                b: 0.0,
+                a: 1.0,
+            },
+        );
+        assert_eq!(
+            crosshair.image_path,
+            LEGACY_RUNTIME_PORTAL_CROSSHAIR_IMAGE_PATH,
+        );
+        assert!(!crosshair.live_rendering_executed);
+        assert!(aim_preview.color_reset_after_dots);
+        assert!(aim_preview.color_reset_after_crosshair);
+        assert!(!aim_preview.live_rendering_executed);
+        assert!(!aim_preview.live_portal_mutated);
         let placement = probe
             .placement
             .expect("two-tile-high portalable wall should allow a placement");
