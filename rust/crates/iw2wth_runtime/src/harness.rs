@@ -2287,16 +2287,16 @@ mod tests {
             LegacyRuntimeFireballRenderFrameKind, LegacyRuntimeFireballRenderQuad,
             LegacyRuntimeFireballRenderSource, LegacyRuntimePlayer, LegacyRuntimePlayerCoinPickup,
             LegacyRuntimePlayerPowerUp, LegacyRuntimePlayerRenderFrame,
-            LegacyRuntimePlayerRenderQuad, LegacyRuntimePlayerRenderTintSource,
-            LegacyRuntimePortalBlockGuardSource, LegacyRuntimePortalOutcomeKind,
-            LegacyRuntimePortalPlacement, LegacyRuntimePortalReservationProjection,
-            LegacyRuntimePortalSlot, LegacyRuntimePortalTargetPlayerSource,
-            LegacyRuntimePortalTransitOutcomeKind, LegacyRuntimePortalWallReservation,
-            LegacyRuntimeProjectedFireballCountSource, LegacyRuntimeProjectedPlayerState,
-            LegacyRuntimeProjectedPlayerStateSnapshot, LegacyRuntimeProjectedPlayerStateSource,
-            LegacyRuntimeProjectedPortalState, LegacyRuntimeRenderContext,
-            LegacyRuntimeScoreSource, LegacyRuntimeTileChangeProjection,
-            LegacyRuntimeTileChangeSource,
+            LegacyRuntimePlayerRenderHatSize, LegacyRuntimePlayerRenderQuad,
+            LegacyRuntimePlayerRenderTintSource, LegacyRuntimePortalBlockGuardSource,
+            LegacyRuntimePortalOutcomeKind, LegacyRuntimePortalPlacement,
+            LegacyRuntimePortalReservationProjection, LegacyRuntimePortalSlot,
+            LegacyRuntimePortalTargetPlayerSource, LegacyRuntimePortalTransitOutcomeKind,
+            LegacyRuntimePortalWallReservation, LegacyRuntimeProjectedFireballCountSource,
+            LegacyRuntimeProjectedPlayerState, LegacyRuntimeProjectedPlayerStateSnapshot,
+            LegacyRuntimeProjectedPlayerStateSource, LegacyRuntimeProjectedPortalState,
+            LegacyRuntimeRenderContext, LegacyRuntimeScoreSource,
+            LegacyRuntimeTileChangeProjection, LegacyRuntimeTileChangeSource,
         },
         tiles::LegacyTileMetadata,
         time::LEGACY_MAX_UPDATE_DT,
@@ -2500,6 +2500,23 @@ mod tests {
                 LegacyRuntimePlayerRenderTintSource::White,
             ],
         );
+        assert_eq!(detail.preview.hat_draw_count, 1);
+        assert_eq!(detail.preview.hat_draws[0].hat_id, 1);
+        assert_eq!(
+            detail.preview.hat_draws[0].size,
+            LegacyRuntimePlayerRenderHatSize::Big,
+        );
+        assert_eq!(
+            detail.preview.hat_draws[0].image_path,
+            "graphics/SMB/bighats/standard.png",
+        );
+        assert_eq!(detail.preview.hat_draws[0].offset_x_px, -5);
+        assert_eq!(detail.preview.hat_draws[0].offset_y_px, -4);
+        assert_eq!(detail.preview.hat_draws[0].follows_graphic_layer_index, 3);
+        assert_eq!(detail.preview.hat_draws[0].precedes_graphic_layer_index, 0);
+        assert_eq!(detail.preview.hat_draws[0].origin_x_px, 4);
+        assert_eq!(detail.preview.hat_draws[0].origin_y_px, 16);
+        assert!(!detail.preview.hat_draws[0].live_rendering_executed);
         assert!(!detail.preview.live_rendering_executed);
         assert!(!detail.preview.live_player_mutated);
         let last_frame = report

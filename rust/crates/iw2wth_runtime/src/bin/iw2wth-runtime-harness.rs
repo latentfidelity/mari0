@@ -31,7 +31,8 @@ use iw2wth_runtime::{
         LegacyRuntimePlayerBlockBounceSchedule, LegacyRuntimePlayerCeilingBlockHit,
         LegacyRuntimePlayerCoinPickup, LegacyRuntimePlayerCollisionAxis,
         LegacyRuntimePlayerPowerUp, LegacyRuntimePlayerRenderColorLayerPreview,
-        LegacyRuntimePlayerRenderFrame, LegacyRuntimePlayerRenderIntentPreview,
+        LegacyRuntimePlayerRenderFrame, LegacyRuntimePlayerRenderHatPreview,
+        LegacyRuntimePlayerRenderHatSize, LegacyRuntimePlayerRenderIntentPreview,
         LegacyRuntimePlayerRenderQuad, LegacyRuntimePlayerRenderTintSource,
         LegacyRuntimePlayerTileCollision, LegacyRuntimePortalBlockGuardSource,
         LegacyRuntimePortalBlockedExitBounceAxis, LegacyRuntimePortalBlockedExitProbe,
@@ -89,7 +90,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     match report.player_render_preview_detail_summary.last_preview {
         Some(detail) => println!(
-            "player render preview: total={} last_frame={} last_index={} last_power_up={} last_size={} last_render_frame={} last_animation_state={:?} last_facing={} last_run_frame={} last_swim_frame={} last_ducking={} last_fire_animation_timer={:.6} last_fire_animation_active={} last_quad={} last_color_layers={} last_draw_x={:.6} last_draw_y={:.6} last_scale={:.6} last_live_rendering_executed={} last_live_player_mutated={} last_detail={}",
+            "player render preview: total={} last_frame={} last_index={} last_power_up={} last_size={} last_render_frame={} last_animation_state={:?} last_facing={} last_run_frame={} last_swim_frame={} last_ducking={} last_fire_animation_timer={:.6} last_fire_animation_active={} last_quad={} last_color_layers={} last_hat_draws={} last_draw_x={:.6} last_draw_y={:.6} last_scale={:.6} last_live_rendering_executed={} last_live_player_mutated={} last_detail={}",
             report.player_render_preview_count,
             detail.frame_index,
             detail.preview.player_index,
@@ -105,6 +106,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             bool_label(detail.preview.fire_animation_active),
             player_render_quad_label(detail.preview.quad),
             player_render_color_layers_label(&detail.preview.color_layers),
+            player_render_hat_draws_label(&detail.preview.hat_draws, detail.preview.hat_draw_count),
             detail.preview.draw_x_px,
             detail.preview.draw_y_px,
             detail.preview.scale,
@@ -113,7 +115,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             player_render_preview_label(detail.preview),
         ),
         None => println!(
-            "player render preview: total={} last_frame=none last_index=none last_power_up=none last_size=none last_render_frame=none last_animation_state=none last_facing=none last_run_frame=none last_swim_frame=none last_ducking=none last_fire_animation_timer=none last_fire_animation_active=none last_quad=none last_color_layers=none last_draw_x=none last_draw_y=none last_scale=none last_live_rendering_executed=none last_live_player_mutated=none last_detail=none",
+            "player render preview: total={} last_frame=none last_index=none last_power_up=none last_size=none last_render_frame=none last_animation_state=none last_facing=none last_run_frame=none last_swim_frame=none last_ducking=none last_fire_animation_timer=none last_fire_animation_active=none last_quad=none last_color_layers=none last_hat_draws=none last_draw_x=none last_draw_y=none last_scale=none last_live_rendering_executed=none last_live_player_mutated=none last_detail=none",
             report.player_render_preview_count,
         ),
     }
@@ -1920,9 +1922,63 @@ fn player_render_color_layers_label(
         .join("|")
 }
 
+fn player_render_hat_size_label(size: LegacyRuntimePlayerRenderHatSize) -> &'static str {
+    match size {
+        LegacyRuntimePlayerRenderHatSize::Small => "small",
+        LegacyRuntimePlayerRenderHatSize::Big => "big",
+    }
+}
+
+fn player_render_hat_draw_label(hat: LegacyRuntimePlayerRenderHatPreview) -> String {
+    format!(
+        "order={},slot={},hat={},size={},image={},tint={:.6}/{:.6}/{:.6},tint_source={},config=({},{},{}),offset=({},{}),stack_y={},after_layer={},before_layer={},draw=({:.6},{:.6}),origin=({},{}),rotation={:.6},direction_scale={:.6},vertical_scale={:.6},live_rendering_executed={}",
+        hat.draw_order,
+        hat.hat_slot_index,
+        hat.hat_id,
+        player_render_hat_size_label(hat.size),
+        hat.image_path,
+        hat.tint.r,
+        hat.tint.g,
+        hat.tint.b,
+        player_render_tint_source_label(hat.tint_source),
+        hat.hat_config_x_px,
+        hat.hat_config_y_px,
+        hat.hat_height_px,
+        hat.offset_x_px,
+        hat.offset_y_px,
+        hat.stack_y_px,
+        hat.follows_graphic_layer_index,
+        hat.precedes_graphic_layer_index,
+        hat.draw_x_px,
+        hat.draw_y_px,
+        hat.origin_x_px,
+        hat.origin_y_px,
+        hat.rotation,
+        hat.direction_scale,
+        hat.vertical_scale,
+        hat.live_rendering_executed,
+    )
+}
+
+fn player_render_hat_draws_label(
+    hats: &[LegacyRuntimePlayerRenderHatPreview; 4],
+    hat_count: u8,
+) -> String {
+    if hat_count == 0 {
+        return "none".to_owned();
+    }
+
+    hats.iter()
+        .take(usize::from(hat_count))
+        .filter(|hat| hat.drawn)
+        .map(|hat| player_render_hat_draw_label(*hat))
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
 fn player_render_preview_label(preview: LegacyRuntimePlayerRenderIntentPreview) -> String {
     format!(
-        "index={};power_up={};size={};render_frame={};animation_state={:?};facing={};run_frame={};swim_frame={};ducking={};fire_animation_timer={:.6};fire_animation_active={};image={};quad={};color_layers={};draw=({:.6},{:.6});rotation={:.6};scale={:.6};live_rendering_executed={};live_player_mutated={}",
+        "index={};power_up={};size={};render_frame={};animation_state={:?};facing={};run_frame={};swim_frame={};ducking={};fire_animation_timer={:.6};fire_animation_active={};image={};quad={};color_layers={};hat_draws={};draw=({:.6},{:.6});rotation={:.6};scale={:.6};live_rendering_executed={};live_player_mutated={}",
         preview.player_index,
         player_power_up_label(preview.power_up),
         preview.size,
@@ -1937,6 +1993,7 @@ fn player_render_preview_label(preview: LegacyRuntimePlayerRenderIntentPreview) 
         preview.image_path,
         player_render_quad_label(preview.quad),
         player_render_color_layers_label(&preview.color_layers),
+        player_render_hat_draws_label(&preview.hat_draws, preview.hat_draw_count),
         preview.draw_x_px,
         preview.draw_y_px,
         preview.rotation,
@@ -3510,6 +3567,71 @@ mod tests {
                 live_rendering_executed: false,
             },
         ];
+        let empty_hat_draw = LegacyRuntimePlayerRenderHatPreview {
+            drawn: false,
+            draw_order: 0,
+            hat_slot_index: 0,
+            hat_id: 0,
+            size: LegacyRuntimePlayerRenderHatSize::Small,
+            image_path: "",
+            tint: LegacyRuntimePlayerRenderTint {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+            },
+            tint_source: LegacyRuntimePlayerRenderTintSource::White,
+            hat_config_x_px: 0,
+            hat_config_y_px: 0,
+            hat_height_px: 0,
+            offset_x_px: 0,
+            offset_y_px: 0,
+            stack_y_px: 0,
+            follows_graphic_layer_index: 3,
+            precedes_graphic_layer_index: 0,
+            draw_x_px: 0.0,
+            draw_y_px: 0.0,
+            origin_x_px: 0,
+            origin_y_px: 0,
+            rotation: 0.0,
+            direction_scale: 0.0,
+            vertical_scale: 0.0,
+            live_rendering_executed: false,
+        };
+        let hat_draws = [
+            LegacyRuntimePlayerRenderHatPreview {
+                drawn: true,
+                draw_order: 0,
+                hat_slot_index: 0,
+                hat_id: 1,
+                size: LegacyRuntimePlayerRenderHatSize::Big,
+                image_path: "graphics/SMB/bighats/standard.png",
+                tint: LegacyRuntimePlayerRenderTint {
+                    r: 252.0 / 255.0,
+                    g: 216.0 / 255.0,
+                    b: 168.0 / 255.0,
+                },
+                tint_source: LegacyRuntimePlayerRenderTintSource::FlowerColor,
+                hat_config_x_px: 0,
+                hat_config_y_px: 0,
+                hat_height_px: 4,
+                offset_x_px: -5,
+                offset_y_px: -4,
+                stack_y_px: 0,
+                follows_graphic_layer_index: 3,
+                precedes_graphic_layer_index: 0,
+                draw_x_px: 36.0,
+                draw_y_px: 102.0,
+                origin_x_px: 4,
+                origin_y_px: 16,
+                rotation: 0.0,
+                direction_scale: -2.0,
+                vertical_scale: 2.0,
+                live_rendering_executed: false,
+            },
+            empty_hat_draw,
+            empty_hat_draw,
+            empty_hat_draw,
+        ];
         let preview = LegacyRuntimePlayerRenderIntentPreview {
             player_index: 0,
             player,
@@ -3527,6 +3649,8 @@ mod tests {
             image_path: "graphics/SMB/player/bigmarioanimations.png",
             quad,
             color_layers,
+            hat_draw_count: 1,
+            hat_draws,
             draw_x_px: 36.0,
             draw_y_px: 102.0,
             rotation: 0.0,
@@ -3537,7 +3661,7 @@ mod tests {
 
         assert_eq!(
             player_render_preview_label(preview),
-            "index=0;power_up=fire;size=3;render_frame=big_duck;animation_state=Running;facing=left;run_frame=2;swim_frame=1;ducking=true;fire_animation_timer=0.050000;fire_animation_active=true;image=graphics/SMB/player/bigmarioanimations.png;quad=260,72,20,36@512x256;color_layers=order=0,layer=1,image=graphics/SMB/player/bigmarioanimations1.png,tint=0.988235/0.847059/0.658824,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=1,layer=2,image=graphics/SMB/player/bigmarioanimations2.png,tint=0.847059/0.156863/0.000000,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=2,layer=3,image=graphics/SMB/player/bigmarioanimations3.png,tint=0.988235/0.596078/0.219608,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=3,layer=0,image=graphics/SMB/player/bigmarioanimations0.png,tint=1.000000/1.000000/1.000000,tint_source=white,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false;draw=(36.000000,102.000000);rotation=0.000000;scale=2.000000;live_rendering_executed=false;live_player_mutated=false",
+            "index=0;power_up=fire;size=3;render_frame=big_duck;animation_state=Running;facing=left;run_frame=2;swim_frame=1;ducking=true;fire_animation_timer=0.050000;fire_animation_active=true;image=graphics/SMB/player/bigmarioanimations.png;quad=260,72,20,36@512x256;color_layers=order=0,layer=1,image=graphics/SMB/player/bigmarioanimations1.png,tint=0.988235/0.847059/0.658824,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=1,layer=2,image=graphics/SMB/player/bigmarioanimations2.png,tint=0.847059/0.156863/0.000000,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=2,layer=3,image=graphics/SMB/player/bigmarioanimations3.png,tint=0.988235/0.596078/0.219608,tint_source=flower_color,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false|order=3,layer=0,image=graphics/SMB/player/bigmarioanimations0.png,tint=1.000000/1.000000/1.000000,tint_source=white,quad=260,72,20,36@512x256,draw=(36.000000,102.000000),rotation=0.000000,scale=2.000000,live_rendering_executed=false;hat_draws=order=0,slot=0,hat=1,size=big,image=graphics/SMB/bighats/standard.png,tint=0.988235/0.847059/0.658824,tint_source=flower_color,config=(0,0,4),offset=(-5,-4),stack_y=0,after_layer=3,before_layer=0,draw=(36.000000,102.000000),origin=(4,16),rotation=0.000000,direction_scale=-2.000000,vertical_scale=2.000000,live_rendering_executed=false;draw=(36.000000,102.000000);rotation=0.000000;scale=2.000000;live_rendering_executed=false;live_player_mutated=false",
         );
     }
 

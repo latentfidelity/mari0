@@ -87,7 +87,14 @@ const LEGACY_RUNTIME_BIG_PLAYER_LAYER_2_IMAGE_PATH: &str =
     "graphics/SMB/player/bigmarioanimations2.png";
 const LEGACY_RUNTIME_BIG_PLAYER_LAYER_3_IMAGE_PATH: &str =
     "graphics/SMB/player/bigmarioanimations3.png";
+const LEGACY_RUNTIME_SMALL_STANDARD_HAT_IMAGE_PATH: &str = "graphics/SMB/hats/standard.png";
+const LEGACY_RUNTIME_SMALL_TYROLEAN_HAT_IMAGE_PATH: &str = "graphics/SMB/hats/tyrolean.png";
+const LEGACY_RUNTIME_SMALL_TOWERING_1_HAT_IMAGE_PATH: &str = "graphics/SMB/hats/towering1.png";
+const LEGACY_RUNTIME_BIG_STANDARD_HAT_IMAGE_PATH: &str = "graphics/SMB/bighats/standard.png";
+const LEGACY_RUNTIME_BIG_TYROLEAN_HAT_IMAGE_PATH: &str = "graphics/SMB/bighats/tyrolean.png";
+const LEGACY_RUNTIME_BIG_TOWERING_1_HAT_IMAGE_PATH: &str = "graphics/SMB/bighats/towering1.png";
 const LEGACY_RUNTIME_FIRE_ANIMATION_TIME: f32 = 0.11;
+const LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS: usize = 4;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LegacyRuntimeLevelSelection {
@@ -866,6 +873,9 @@ pub struct LegacyRuntimePlayer {
     pub big_mario: bool,
     pub power_up: LegacyRuntimePlayerPowerUp,
     pub fire_animation_timer: f32,
+    pub hats: [u8; LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS],
+    pub hat_count: u8,
+    pub draw_hat: bool,
 }
 
 impl LegacyRuntimePlayer {
@@ -877,6 +887,9 @@ impl LegacyRuntimePlayer {
             big_mario: false,
             power_up: LegacyRuntimePlayerPowerUp::Small,
             fire_animation_timer: LEGACY_RUNTIME_FIRE_ANIMATION_TIME,
+            hats: [1, 0, 0, 0],
+            hat_count: 1,
+            draw_hat: true,
         }
     }
 
@@ -901,6 +914,19 @@ impl LegacyRuntimePlayer {
     #[must_use]
     pub const fn with_fire_animation_timer(mut self, fire_animation_timer: f32) -> Self {
         self.fire_animation_timer = fire_animation_timer;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_hat_slots(mut self, hats: [u8; 4], hat_count: u8) -> Self {
+        self.hats = hats;
+        self.hat_count = if hat_count > 4 { 4 } else { hat_count };
+        self
+    }
+
+    #[must_use]
+    pub const fn with_draw_hat(mut self, draw_hat: bool) -> Self {
+        self.draw_hat = draw_hat;
         self
     }
 }
@@ -1320,6 +1346,40 @@ pub struct LegacyRuntimePlayerRenderColorLayerPreview {
     pub live_rendering_executed: bool,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LegacyRuntimePlayerRenderHatSize {
+    Small,
+    Big,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LegacyRuntimePlayerRenderHatPreview {
+    pub drawn: bool,
+    pub draw_order: u8,
+    pub hat_slot_index: u8,
+    pub hat_id: u8,
+    pub size: LegacyRuntimePlayerRenderHatSize,
+    pub image_path: &'static str,
+    pub tint: LegacyRuntimePlayerRenderTint,
+    pub tint_source: LegacyRuntimePlayerRenderTintSource,
+    pub hat_config_x_px: i32,
+    pub hat_config_y_px: i32,
+    pub hat_height_px: i32,
+    pub offset_x_px: i32,
+    pub offset_y_px: i32,
+    pub stack_y_px: i32,
+    pub follows_graphic_layer_index: u8,
+    pub precedes_graphic_layer_index: u8,
+    pub draw_x_px: f32,
+    pub draw_y_px: f32,
+    pub origin_x_px: i32,
+    pub origin_y_px: i32,
+    pub rotation: f32,
+    pub direction_scale: f32,
+    pub vertical_scale: f32,
+    pub live_rendering_executed: bool,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LegacyRuntimePlayerRenderIntentPreview {
     pub player_index: usize,
@@ -1338,6 +1398,8 @@ pub struct LegacyRuntimePlayerRenderIntentPreview {
     pub image_path: &'static str,
     pub quad: LegacyRuntimePlayerRenderQuad,
     pub color_layers: [LegacyRuntimePlayerRenderColorLayerPreview; 4],
+    pub hat_draw_count: u8,
+    pub hat_draws: [LegacyRuntimePlayerRenderHatPreview; LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS],
     pub draw_x_px: f32,
     pub draw_y_px: f32,
     pub rotation: f32,
@@ -1846,6 +1908,9 @@ impl LegacyRuntimeProjectedPlayerState {
             big_mario: live_player.big_mario,
             power_up: live_player.power_up,
             fire_animation_timer: live_player.fire_animation_timer,
+            hats: live_player.hats,
+            hat_count: live_player.hat_count,
+            draw_hat: live_player.draw_hat,
         }
     }
 
@@ -3599,6 +3664,19 @@ fn legacy_runtime_player_render_intent_preview(
             draw_y_px,
             render.scale,
         ),
+        hat_draw_count: legacy_runtime_player_render_hat_draw_count(
+            player,
+            size,
+            fire_animation_active,
+        ),
+        hat_draws: legacy_runtime_player_render_hat_draws(
+            player,
+            size,
+            fire_animation_active,
+            draw_x_px,
+            draw_y_px,
+            render.scale,
+        ),
         draw_x_px,
         draw_y_px,
         rotation: 0.0,
@@ -3705,6 +3783,35 @@ const fn legacy_runtime_player_render_layer_image_path(size: u8, layer_index: u8
     }
 }
 
+const fn legacy_runtime_player_render_hat_draw_count(
+    player: LegacyRuntimePlayer,
+    size: u8,
+    fire_animation_active: bool,
+) -> u8 {
+    if !player.draw_hat || player.hat_count == 0 {
+        return 0;
+    }
+
+    if legacy_runtime_player_render_hat_offsets(
+        size,
+        player.movement.animation_state,
+        player.movement.ducking,
+        player.movement.run_frame,
+        player.movement.swim_frame,
+        fire_animation_active,
+    )
+    .is_none()
+    {
+        return 0;
+    }
+
+    if player.hat_count > LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS as u8 {
+        LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS as u8
+    } else {
+        player.hat_count
+    }
+}
+
 const fn legacy_runtime_player_render_color_layers(
     size: u8,
     power_up: LegacyRuntimePlayerPowerUp,
@@ -3725,6 +3832,273 @@ const fn legacy_runtime_player_render_color_layers(
         legacy_runtime_player_render_color_layer(size, power_up, 3, 2, geometry),
         legacy_runtime_player_render_color_layer(size, power_up, 0, 3, geometry),
     ]
+}
+
+fn legacy_runtime_player_render_hat_draws(
+    player: LegacyRuntimePlayer,
+    size: u8,
+    fire_animation_active: bool,
+    draw_x_px: f32,
+    draw_y_px: f32,
+    scale: f32,
+) -> [LegacyRuntimePlayerRenderHatPreview; LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS] {
+    let mut hat_draws =
+        [legacy_runtime_player_render_empty_hat_preview(); LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS];
+    if !player.draw_hat || player.hat_count == 0 {
+        return hat_draws;
+    }
+
+    let Some((offset_x_px, offset_y_px)) = legacy_runtime_player_render_hat_offsets(
+        size,
+        player.movement.animation_state,
+        player.movement.ducking,
+        player.movement.run_frame,
+        player.movement.swim_frame,
+        fire_animation_active,
+    ) else {
+        return hat_draws;
+    };
+
+    let mut stack_y_px = 0;
+    let count = usize::from(
+        player
+            .hat_count
+            .min(LEGACY_RUNTIME_PLAYER_MAX_HAT_PREVIEWS as u8),
+    );
+    for (slot_index, preview) in hat_draws.iter_mut().enumerate().take(count) {
+        let hat_id = player.hats[slot_index];
+        let config = legacy_runtime_player_render_hat_config(size, hat_id);
+        let (tint, tint_source) = if hat_id == 1 {
+            legacy_runtime_player_render_layer_tint(player.power_up, 1)
+        } else {
+            (
+                LegacyRuntimePlayerRenderTint {
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
+                },
+                LegacyRuntimePlayerRenderTintSource::White,
+            )
+        };
+        *preview = LegacyRuntimePlayerRenderHatPreview {
+            drawn: true,
+            draw_order: slot_index as u8,
+            hat_slot_index: slot_index as u8,
+            hat_id,
+            size: if size == 1 {
+                LegacyRuntimePlayerRenderHatSize::Small
+            } else {
+                LegacyRuntimePlayerRenderHatSize::Big
+            },
+            image_path: config.image_path,
+            tint,
+            tint_source,
+            hat_config_x_px: config.x_px,
+            hat_config_y_px: config.y_px,
+            hat_height_px: config.height_px,
+            offset_x_px,
+            offset_y_px,
+            stack_y_px,
+            follows_graphic_layer_index: 3,
+            precedes_graphic_layer_index: 0,
+            draw_x_px,
+            draw_y_px,
+            origin_x_px: legacy_runtime_player_quad_center_x(size) - config.x_px + offset_x_px,
+            origin_y_px: legacy_runtime_player_quad_center_y(size) - config.y_px
+                + offset_y_px
+                + stack_y_px,
+            rotation: 0.0,
+            direction_scale: match player.movement.animation_direction {
+                HorizontalDirection::Left => -scale,
+                HorizontalDirection::Right => scale,
+            },
+            vertical_scale: scale,
+            live_rendering_executed: false,
+        };
+        stack_y_px += config.height_px;
+    }
+    hat_draws
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct LegacyRuntimePlayerRenderHatConfig {
+    image_path: &'static str,
+    x_px: i32,
+    y_px: i32,
+    height_px: i32,
+}
+
+const fn legacy_runtime_player_render_empty_hat_preview() -> LegacyRuntimePlayerRenderHatPreview {
+    LegacyRuntimePlayerRenderHatPreview {
+        drawn: false,
+        draw_order: 0,
+        hat_slot_index: 0,
+        hat_id: 0,
+        size: LegacyRuntimePlayerRenderHatSize::Small,
+        image_path: "",
+        tint: LegacyRuntimePlayerRenderTint {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+        },
+        tint_source: LegacyRuntimePlayerRenderTintSource::White,
+        hat_config_x_px: 0,
+        hat_config_y_px: 0,
+        hat_height_px: 0,
+        offset_x_px: 0,
+        offset_y_px: 0,
+        stack_y_px: 0,
+        follows_graphic_layer_index: 3,
+        precedes_graphic_layer_index: 0,
+        draw_x_px: 0.0,
+        draw_y_px: 0.0,
+        origin_x_px: 0,
+        origin_y_px: 0,
+        rotation: 0.0,
+        direction_scale: 0.0,
+        vertical_scale: 0.0,
+        live_rendering_executed: false,
+    }
+}
+
+const fn legacy_runtime_player_render_hat_config(
+    size: u8,
+    hat_id: u8,
+) -> LegacyRuntimePlayerRenderHatConfig {
+    if size == 1 {
+        match hat_id {
+            2 => LegacyRuntimePlayerRenderHatConfig {
+                image_path: LEGACY_RUNTIME_SMALL_TYROLEAN_HAT_IMAGE_PATH,
+                x_px: 5,
+                y_px: -3,
+                height_px: 4,
+            },
+            3 => LegacyRuntimePlayerRenderHatConfig {
+                image_path: LEGACY_RUNTIME_SMALL_TOWERING_1_HAT_IMAGE_PATH,
+                x_px: 5,
+                y_px: -1,
+                height_px: 4,
+            },
+            _ => LegacyRuntimePlayerRenderHatConfig {
+                image_path: LEGACY_RUNTIME_SMALL_STANDARD_HAT_IMAGE_PATH,
+                x_px: 7,
+                y_px: 2,
+                height_px: 2,
+            },
+        }
+    } else {
+        match hat_id {
+            2 => LegacyRuntimePlayerRenderHatConfig {
+                image_path: LEGACY_RUNTIME_BIG_TYROLEAN_HAT_IMAGE_PATH,
+                x_px: -2,
+                y_px: -3,
+                height_px: 5,
+            },
+            3 => LegacyRuntimePlayerRenderHatConfig {
+                image_path: LEGACY_RUNTIME_BIG_TOWERING_1_HAT_IMAGE_PATH,
+                x_px: -2,
+                y_px: -2,
+                height_px: 5,
+            },
+            _ => LegacyRuntimePlayerRenderHatConfig {
+                image_path: LEGACY_RUNTIME_BIG_STANDARD_HAT_IMAGE_PATH,
+                x_px: 0,
+                y_px: 0,
+                height_px: 4,
+            },
+        }
+    }
+}
+
+const fn legacy_runtime_player_render_hat_offsets(
+    size: u8,
+    animation_state: PlayerAnimationState,
+    ducking: bool,
+    run_frame: u8,
+    swim_frame: u8,
+    fire_animation_active: bool,
+) -> Option<(i32, i32)> {
+    if size == 1 {
+        match animation_state {
+            PlayerAnimationState::Idle => Some((0, 0)),
+            PlayerAnimationState::Running | PlayerAnimationState::Falling => {
+                legacy_runtime_player_render_small_running_hat_offset(run_frame)
+            }
+            PlayerAnimationState::Sliding => Some((0, 0)),
+            PlayerAnimationState::Jumping => Some((0, -1)),
+            PlayerAnimationState::Swimming => {
+                legacy_runtime_player_render_small_swimming_hat_offset(swim_frame)
+            }
+            PlayerAnimationState::Climbing => {
+                legacy_runtime_player_render_small_climbing_hat_offset(swim_frame)
+            }
+            PlayerAnimationState::Dead => None,
+        }
+    } else if fire_animation_active {
+        Some((-5, -4))
+    } else if ducking {
+        Some((-5, -12))
+    } else {
+        match animation_state {
+            PlayerAnimationState::Idle => Some((-4, -2)),
+            PlayerAnimationState::Running | PlayerAnimationState::Falling => {
+                legacy_runtime_player_render_big_running_hat_offset(run_frame)
+            }
+            PlayerAnimationState::Sliding => Some((-5, -2)),
+            PlayerAnimationState::Jumping => Some((-4, -4)),
+            PlayerAnimationState::Swimming => {
+                legacy_runtime_player_render_big_swimming_hat_offset(swim_frame)
+            }
+            PlayerAnimationState::Climbing => Some((-4, -4)),
+            PlayerAnimationState::Dead => None,
+        }
+    }
+}
+
+const fn legacy_runtime_player_render_small_running_hat_offset(
+    run_frame: u8,
+) -> Option<(i32, i32)> {
+    match run_frame {
+        3 => Some((-1, -1)),
+        _ => Some((0, 0)),
+    }
+}
+
+const fn legacy_runtime_player_render_big_running_hat_offset(run_frame: u8) -> Option<(i32, i32)> {
+    match run_frame {
+        1 => Some((-5, -4)),
+        2 => Some((-4, -3)),
+        _ => Some((-3, -2)),
+    }
+}
+
+const fn legacy_runtime_player_render_small_swimming_hat_offset(
+    _swim_frame: u8,
+) -> Option<(i32, i32)> {
+    Some((1, -1))
+}
+
+const fn legacy_runtime_player_render_big_swimming_hat_offset(
+    _swim_frame: u8,
+) -> Option<(i32, i32)> {
+    Some((-5, -4))
+}
+
+const fn legacy_runtime_player_render_small_climbing_hat_offset(
+    swim_frame: u8,
+) -> Option<(i32, i32)> {
+    match swim_frame {
+        2 => Some((2, -1)),
+        _ => Some((2, 0)),
+    }
+}
+
+const fn legacy_runtime_player_quad_center_x(size: u8) -> i32 {
+    if size == 1 { 11 } else { 9 }
+}
+
+const fn legacy_runtime_player_quad_center_y(size: u8) -> i32 {
+    if size == 1 { 10 } else { 20 }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -5222,17 +5596,18 @@ mod tests {
         LegacyRuntimeFrameRequest, LegacyRuntimeLevelSelection,
         LegacyRuntimeManyCoinsTimerStartReport, LegacyRuntimeManyCoinsTimerUpdateReport,
         LegacyRuntimePlayer, LegacyRuntimePlayerCollisionAxis, LegacyRuntimePlayerPowerUp,
-        LegacyRuntimePlayerRenderFrame, LegacyRuntimePlayerRenderQuad,
-        LegacyRuntimePlayerRenderTintSource, LegacyRuntimePortalAimSnapshot,
-        LegacyRuntimePortalBlockedExitBounceAxis, LegacyRuntimePortalBlockedExitProbe,
-        LegacyRuntimePortalCoordsPreviewReport, LegacyRuntimePortalOutcomeIntent,
-        LegacyRuntimePortalOutcomeKind, LegacyRuntimePortalPairReadinessSummary,
-        LegacyRuntimePortalPairing, LegacyRuntimePortalPlacement,
-        LegacyRuntimePortalReplacementSummary, LegacyRuntimePortalReservationProjection,
-        LegacyRuntimePortalSlot, LegacyRuntimePortalTransitAudioIntent,
-        LegacyRuntimePortalTransitCandidateProbe, LegacyRuntimePortalTransitOutcomeKind,
-        LegacyRuntimePortalTransitOutcomeSummary, LegacyRuntimePortalWallReservation,
-        LegacyRuntimeProjectedFireballCountSource, LegacyRuntimeProjectedFireballEnemyHitSnapshot,
+        LegacyRuntimePlayerRenderFrame, LegacyRuntimePlayerRenderHatSize,
+        LegacyRuntimePlayerRenderQuad, LegacyRuntimePlayerRenderTintSource,
+        LegacyRuntimePortalAimSnapshot, LegacyRuntimePortalBlockedExitBounceAxis,
+        LegacyRuntimePortalBlockedExitProbe, LegacyRuntimePortalCoordsPreviewReport,
+        LegacyRuntimePortalOutcomeIntent, LegacyRuntimePortalOutcomeKind,
+        LegacyRuntimePortalPairReadinessSummary, LegacyRuntimePortalPairing,
+        LegacyRuntimePortalPlacement, LegacyRuntimePortalReplacementSummary,
+        LegacyRuntimePortalReservationProjection, LegacyRuntimePortalSlot,
+        LegacyRuntimePortalTransitAudioIntent, LegacyRuntimePortalTransitCandidateProbe,
+        LegacyRuntimePortalTransitOutcomeKind, LegacyRuntimePortalTransitOutcomeSummary,
+        LegacyRuntimePortalWallReservation, LegacyRuntimeProjectedFireballCountSource,
+        LegacyRuntimeProjectedFireballEnemyHitSnapshot,
         LegacyRuntimeProjectedFireballEnemyHitState, LegacyRuntimeProjectedPlayerStateSnapshot,
         LegacyRuntimeProjectedPlayerStateSource, LegacyRuntimeProjectedPortal,
         LegacyRuntimeProjectedPortalState, LegacyRuntimeRenderContext,
@@ -5578,6 +5953,40 @@ mod tests {
                     && layer.draw_y_px == preview.draw_y_px
                     && !layer.live_rendering_executed)
         );
+        assert_eq!(preview.hat_draw_count, 1);
+        assert_eq!(preview.hat_draws[0].draw_order, 0);
+        assert_eq!(preview.hat_draws[0].hat_slot_index, 0);
+        assert_eq!(preview.hat_draws[0].hat_id, 1);
+        assert_eq!(
+            preview.hat_draws[0].size,
+            LegacyRuntimePlayerRenderHatSize::Big,
+        );
+        assert_eq!(
+            preview.hat_draws[0].image_path,
+            "graphics/SMB/bighats/standard.png",
+        );
+        assert_eq!(preview.hat_draws[0].hat_config_x_px, 0);
+        assert_eq!(preview.hat_draws[0].hat_config_y_px, 0);
+        assert_eq!(preview.hat_draws[0].hat_height_px, 4);
+        assert_eq!(preview.hat_draws[0].offset_x_px, -5);
+        assert_eq!(preview.hat_draws[0].offset_y_px, -4);
+        assert_eq!(preview.hat_draws[0].stack_y_px, 0);
+        assert_eq!(preview.hat_draws[0].follows_graphic_layer_index, 3);
+        assert_eq!(preview.hat_draws[0].precedes_graphic_layer_index, 0);
+        assert_close(preview.hat_draws[0].draw_x_px, preview.draw_x_px);
+        assert_close(preview.hat_draws[0].draw_y_px, preview.draw_y_px);
+        assert_eq!(preview.hat_draws[0].origin_x_px, 4);
+        assert_eq!(preview.hat_draws[0].origin_y_px, 16);
+        assert_close(preview.hat_draws[0].direction_scale, -2.0);
+        assert_close(preview.hat_draws[0].vertical_scale, 2.0);
+        assert_eq!(
+            preview.hat_draws[0].tint_source,
+            LegacyRuntimePlayerRenderTintSource::FlowerColor,
+        );
+        assert_close(preview.hat_draws[0].tint.r, 252.0 / 255.0);
+        assert_close(preview.hat_draws[0].tint.g, 216.0 / 255.0);
+        assert_close(preview.hat_draws[0].tint.b, 168.0 / 255.0);
+        assert!(!preview.hat_draws[0].live_rendering_executed);
         assert_close(preview.draw_x_px, 36.0);
         assert_close(preview.draw_y_px, 102.0);
         assert!(!preview.live_rendering_executed);
@@ -5904,10 +6313,97 @@ mod tests {
                 preview.color_layers[3].image_path,
                 format!("{expected_layer_prefix}0.png"),
             );
+            assert_eq!(
+                preview.hat_draw_count,
+                if matches!(animation_state, PlayerAnimationState::Dead) {
+                    0
+                } else {
+                    1
+                },
+            );
+            if preview.hat_draw_count == 1 {
+                assert_eq!(preview.hat_draws[0].follows_graphic_layer_index, 3);
+                assert_eq!(preview.hat_draws[0].precedes_graphic_layer_index, 0);
+                assert!(preview.hat_draws[0].drawn);
+                assert_eq!(preview.hat_draws[0].hat_id, 1);
+            }
             assert!(!preview.live_rendering_executed);
             assert!(!preview.live_player_mutated);
             assert_eq!(preview.player, player);
         }
+    }
+
+    #[test]
+    fn player_render_hat_previews_preserve_small_hat_stack_and_tint_rules() {
+        let render = LegacyRuntimeRenderContext::new(1.0, 1.0);
+        let movement = PlayerMovementState {
+            animation_state: PlayerAnimationState::Running,
+            animation_direction: HorizontalDirection::Right,
+            run_frame: 3,
+            ..PlayerMovementState::default()
+        };
+        let player = LegacyRuntimePlayer::new(
+            PlayerBodyBounds::new(2.0, 3.0, 12.0 / 16.0, 12.0 / 16.0),
+            movement,
+        )
+        .with_hat_slots([1, 2, 0, 0], 2);
+
+        let preview = legacy_runtime_player_render_intent_preview(player, render);
+
+        assert_eq!(preview.hat_draw_count, 2);
+        assert_eq!(
+            preview.hat_draws.map(|hat| (
+                hat.drawn,
+                hat.draw_order,
+                hat.hat_slot_index,
+                hat.hat_id,
+                hat.hat_config_x_px,
+                hat.hat_config_y_px,
+                hat.hat_height_px,
+                hat.follows_graphic_layer_index,
+                hat.precedes_graphic_layer_index,
+            )),
+            [
+                (true, 0, 0, 1, 7, 2, 2, 3, 0),
+                (true, 1, 1, 2, 5, -3, 4, 3, 0),
+                (false, 0, 0, 0, 0, 0, 0, 3, 0),
+                (false, 0, 0, 0, 0, 0, 0, 3, 0),
+            ],
+        );
+        assert_eq!(
+            preview.hat_draws.map(|hat| hat.image_path),
+            [
+                "graphics/SMB/hats/standard.png",
+                "graphics/SMB/hats/tyrolean.png",
+                "",
+                "",
+            ],
+        );
+        assert_eq!(
+            preview
+                .hat_draws
+                .map(|hat| (hat.offset_x_px, hat.offset_y_px, hat.stack_y_px)),
+            [(-1, -1, 0), (-1, -1, 2), (0, 0, 0), (0, 0, 0)],
+        );
+        assert_eq!(
+            preview
+                .hat_draws
+                .map(|hat| (hat.origin_x_px, hat.origin_y_px)),
+            [(3, 7), (5, 14), (0, 0), (0, 0)],
+        );
+        assert_eq!(
+            preview.hat_draws[0].tint_source,
+            LegacyRuntimePlayerRenderTintSource::PlayerColor,
+        );
+        assert_eq!(
+            preview.hat_draws[1].tint_source,
+            LegacyRuntimePlayerRenderTintSource::White,
+        );
+        assert_close(preview.hat_draws[0].direction_scale, 1.0);
+        assert_close(preview.hat_draws[1].direction_scale, 1.0);
+        assert!(!preview.hat_draws[0].live_rendering_executed);
+        assert!(!preview.hat_draws[1].live_rendering_executed);
+        assert_eq!(preview.player, player);
     }
 
     #[test]
